@@ -10,6 +10,7 @@ import { createServer } from 'http';
 import cors from 'cors';
 import { expressjwt as jwt } from 'express-jwt';
 import jwksRsa from 'jwks-rsa';
+import { decode as jwtDecode } from 'jsonwebtoken';
 
 const app = express();
 const server = createServer(app);
@@ -33,8 +34,8 @@ app.use(cors({
 
 app.use(express.json());
 
-// JWT verification for React Native
-const checkJwt = jwt({
+// JWT verification middleware for React Native
+const verifyJwt = jwt({
   secret: jwksRsa.expressJwtSecret({
     cache: true,
     rateLimit: true,
@@ -46,15 +47,14 @@ const checkJwt = jwt({
   algorithms: ['RS256']
 });
 
-// Middleware to extract user from JWT token (for React Native)
-const extractUserFromToken = async (req, res, next) => {
+// Middleware to handle both web OAuth and React Native JWT
+const authenticateUser = async (req, res, next) => {
   try {
+    // Check if it's a React Native request (has Authorization header)
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
-      // JWT token flow (React Native)
+      // React Native JWT flow
       const token = req.headers.authorization.substring(7);
-      
-      // Use jsonwebtoken for decoding
-      const decoded = jwtDecode.decode(token);
+      const decoded = jwtDecode(token);
       
       if (decoded && decoded.sub) {
         req.oidc = {
@@ -68,15 +68,17 @@ const extractUserFromToken = async (req, res, next) => {
         };
       }
     }
+    // If no Authorization header, let express-openid-connect handle it (web flow)
     next();
   } catch (error) {
-    console.error('JWT extraction error:', error);
+    console.error('Authentication error:', error);
     next();
   }
 };
 
-app.use(extractUserFromToken);
+app.use(authenticateUser);
 
+// Web OAuth configuration (only for web browsers)
 const config = {
   authRequired: false,
   auth0Logout: true,
