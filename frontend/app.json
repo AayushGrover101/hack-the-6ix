@@ -15,7 +15,9 @@
         "NSLocationWhenInUseUsageDescription": "This app needs access to location when open to provide location-based features.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to location in the background to track your movements and provide location-based services.",
         "NSLocationAlwaysUsageDescription": "This app needs access to location in the background to track your movements and provide location-based services.",
-        "UIBackgroundModes": ["location"]
+        "UIBackgroundModes": [
+          "location"
+        ]
       }
     },
     "android": {
@@ -26,7 +28,7 @@
       "edgeToEdgeEnabled": true,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION", 
+        "ACCESS_FINE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_LOCATION"
@@ -63,7 +65,8 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true
