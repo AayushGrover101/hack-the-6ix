@@ -236,9 +236,14 @@ export default function HomeScreen() {
 
     return () => {
       sharedLocationCallback = null;
-      Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME).catch(
-        console.error
-      );
+      // Safety check to prevent E_TASK_NOT_FOUND error
+      TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME).then((isRegistered) => {
+        if (isRegistered) {
+          Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME).catch(
+            console.error
+          );
+        }
+      });
       if (cleanupInterval) {
         clearInterval(cleanupInterval);
       }

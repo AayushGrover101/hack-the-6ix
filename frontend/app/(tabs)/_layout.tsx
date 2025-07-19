@@ -1,4 +1,4 @@
-import { Stack } from "expo-router";
+import { Tabs } from "expo-router";
 import React from "react";
 import { View, StyleSheet } from "react-native";
 import CustomTabBar from "@/components/CustomTabBar";
@@ -6,23 +6,32 @@ import CustomTabBar from "@/components/CustomTabBar";
 export default function TabLayout() {
   return (
     <View style={styles.container}>
-      <Stack
+      <Tabs
         screenOptions={{
           headerShown: false,
-          animation: 'simple_push',
-          gestureEnabled: true,
+          tabBarStyle: { display: 'none' }, // Hide default tab bar since we have custom one
         }}
+        tabBar={() => <CustomTabBar profilePicture={require("@/assets/images/react-logo.png")} />}
       >
-        <Stack.Screen 
+        <Tabs.Screen 
           name="index" 
           options={{ 
-            gestureEnabled: false
+            title: 'Home'
           }}
         />
-        <Stack.Screen name="boopGroupPage" />
-        <Stack.Screen name="profilePage" />
-      </Stack>
-      <CustomTabBar profilePicture={require("@/assets/images/react-logo.png")} />
+        <Tabs.Screen 
+          name="boopGroupPage"
+          options={{ 
+            title: 'Group'
+          }}
+        />
+        <Tabs.Screen 
+          name="profilePage"
+          options={{ 
+            title: 'Profile'
+          }}
+        />
+      </Tabs>
     </View>
   );
 }
