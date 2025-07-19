@@ -82,7 +82,7 @@ export default function TabTwoScreen() {
         <Slider
           style={styles.slider}
           minimumValue={100}
-          maximumValue={500}
+          maximumValue={300}
           value={buzzDuration}
           onValueChange={setBuzzDuration}
           minimumTrackTintColor="#1fb28a"
@@ -96,7 +96,7 @@ export default function TabTwoScreen() {
         </ThemedText>
         <Slider
           style={styles.slider}
-          minimumValue={0}
+          minimumValue={150}
           maximumValue={1500}
           value={waitTime}
           onValueChange={setWaitTime}
