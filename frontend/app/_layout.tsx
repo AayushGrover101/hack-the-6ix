@@ -16,6 +16,7 @@ export default function RootLayout() {
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
     ItcKabelDemi: require("../assets/fonts/itc-kabel-std/ITCKabelStdDemi.ttf"),
     GeneralSanMedium: require("../assets/fonts/general-sans/GeneralSans-Medium.otf"),
+    GeneralSanSemiBold: require("../assets/fonts/general-sans/GeneralSans-Semibold.otf"),
   });
 
   if (!loaded) {

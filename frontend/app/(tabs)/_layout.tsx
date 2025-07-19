@@ -9,7 +9,7 @@ export default function TabLayout() {
       <Stack
         screenOptions={{
           headerShown: false,
-          animation: 'slide_from_right',
+          animation: 'simple_push',
           gestureEnabled: true,
         }}
       >
@@ -20,10 +20,9 @@ export default function TabLayout() {
           }}
         />
         <Stack.Screen name="boopGroupPage" />
-        <Stack.Screen name="detectedPage" />
-        <Stack.Screen name="testTab" />
+        <Stack.Screen name="profilePage" />
       </Stack>
-      <CustomTabBar />
+      <CustomTabBar profilePicture={require("@/assets/images/react-logo.png")} />
     </View>
   );
 }

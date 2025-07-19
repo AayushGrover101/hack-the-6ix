@@ -1,6 +1,7 @@
 import { router } from "expo-router";
-import { useState, useEffect } from "react";
-import { Platform, StyleSheet, AppState, Button } from "react-native";
+import { useState, useEffect, useRef } from "react";
+import { Platform, StyleSheet, AppState, Button, Vibration } from "react-native";
+import Slider from "@react-native-community/slider";
 
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
@@ -38,6 +39,10 @@ export default function HomeScreen() {
   const [currTestLocation, setCurrTestLocation] =
     useState<Location.LocationObject | null>(null);
   const [detected, setDetected] = useState<boolean>(false); // TODO: make this a context or global state or smth
+  
+  const [buzzDuration, setBuzzDuration] = useState(200);
+  const [waitTime, setWaitTime] = useState(500);
+  const intervalRef = useRef<number | null>(null);
   // const [toggleDND, setToggleDND] = useState<boolean>(false);
 
   useEffect(() => {
@@ -56,6 +61,40 @@ export default function HomeScreen() {
       subscription?.remove();
     };
   }, []);
+
+  // make bzzzzzzzzz
+  useEffect(() => {
+    if (detected) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+
+      const startRepeatingVibration = () => {
+        Vibration.vibrate(buzzDuration);
+        
+        const interval = setInterval(() => {
+          Vibration.vibrate(buzzDuration);
+        }, waitTime);
+
+        intervalRef.current = interval;
+      };
+
+      startRepeatingVibration();
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      Vibration.cancel();
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+      Vibration.cancel();
+    };
+  }, [buzzDuration, waitTime, detected]);
 
   useEffect(() => {
     let cleanupInterval: any;
@@ -226,11 +265,11 @@ export default function HomeScreen() {
     getCurrentLocation();
   }, []);
 
-  useEffect(() => {
-    if (detected) {
-      router.push("/(tabs)/detectedPage");
-    }
-  }, [detected]);
+  // useEffect(() => {
+  //   if (detected) {
+  //     router.push("/(tabs)/detectedPage");
+  //   }
+  // }, [detected]);
 
   return (
     <ThemedView style={styles.container}>
@@ -240,7 +279,42 @@ export default function HomeScreen() {
       <ThemedText style={styles.subtitle}>No one is nearby.</ThemedText>
       {/* <CompassHeading /> */}
 
-      <Button onPress={() => setDetected(true)} title="Go to Detected Page" />
+      <Button onPress={() => setDetected(!detected)} title={detected ? "Stop Detection" : "Start Detection"} />
+      
+      {detected && (
+        <ThemedView style={styles.detectionContainer}>
+          <ThemedText style={styles.detectionText}>🎯 Someone detected nearby!</ThemedText>
+          <ThemedView style={styles.sliderContainer}>
+            <ThemedText style={styles.sliderLabel}>
+              Buzz Duration: {buzzDuration.toFixed(0)}ms
+            </ThemedText>
+            <Slider
+              style={styles.slider}
+              minimumValue={100}
+              maximumValue={300}
+              value={buzzDuration}
+              onValueChange={setBuzzDuration}
+              minimumTrackTintColor="#4785EA"
+              maximumTrackTintColor="#d3d3d3"
+            />
+          </ThemedView>
+          
+          <ThemedView style={styles.sliderContainer}>
+            <ThemedText style={styles.sliderLabel}>
+              Wait Time: {waitTime.toFixed(0)}ms ({(waitTime/1000).toFixed(2)}s)
+            </ThemedText>
+            <Slider
+              style={styles.slider}
+              minimumValue={150}
+              maximumValue={1500}
+              value={waitTime}
+              onValueChange={setWaitTime}
+              minimumTrackTintColor="#ff6b6b"
+              maximumTrackTintColor="#d3d3d3"
+            />
+          </ThemedView>
+        </ThemedView>
+      )}
     </ThemedView>
   );
 }
@@ -265,5 +339,35 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: "#737373",
     marginBottom: 10,
+  },
+  detectionContainer: {
+    marginTop: 30,
+    padding: 20,
+    backgroundColor: 'rgba(71, 133, 234, 0.1)',
+    borderRadius: 12,
+    width: '90%',
+    alignItems: 'center',
+  },
+  detectionText: {
+    fontSize: 18,
+    fontFamily: "GeneralSanMedium",
+    color: "#4785EA",
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  sliderContainer: {
+    marginVertical: 15,
+    width: '100%',
+  },
+  sliderLabel: {
+    fontSize: 14,
+    fontFamily: "GeneralSanMedium",
+    color: "#737373",
+    marginBottom: 5,
+    textAlign: 'center',
+  },
+  slider: {
+    width: "100%",
+    height: 40,
   },
 });
