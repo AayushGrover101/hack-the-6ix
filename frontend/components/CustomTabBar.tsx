@@ -41,8 +41,9 @@ const tabs: TabItem[] = [
     name: "profilePage",
     route: "/profilePage",
     label: "Profile",
-    color: "#F06C6C",
-    backgroundColor: "#FFD6D6",
+    color: "#E88D4C",
+    backgroundColor: "#FFE8BE",
+    imagePath: require("@/assets/images/nav/profile.svg"), 
   },
   // {
   //   name: 'testTab',
@@ -94,7 +95,7 @@ export default function CustomTabBar({ profilePicture }: CustomTabBarProps) {
           >
             <View style={styles.tabIconContainer}>
               <Image
-                source={tab.imagePath ? tab.imagePath : profilePicture}
+                source={tab.imagePath}
                 style={{
                   width: 24,
                   height: 24,
