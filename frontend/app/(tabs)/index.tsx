@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
+import { router } from 'expo-router';
 import { useState, useEffect } from 'react';
-import { Platform, StyleSheet, AppState } from 'react-native';
+import { Platform, StyleSheet, AppState, Button } from 'react-native';
 
 import { HelloWave } from '@/components/HelloWave';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
@@ -30,10 +31,11 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }: any) => {
   }
 });
 
-
 export default function HomeScreen() {
   const [appState, setAppState] = useState(AppState.currentState);
-  const [currLocation, setCurrLocation] = useState<Location.LocationObject | null>(null);
+  const [currTestLocation, setCurrTestLocation] = useState<Location.LocationObject | null>(null);
+  const [detected, setDetected] = useState<boolean>(false); // TODO: make this a context or global state or smth
+  // const [toggleDND, setToggleDND] = useState<boolean>(false);
 
   useEffect(() => {
     const handleAppStateChange = (nextAppState: typeof AppState.currentState) => {
@@ -48,8 +50,10 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
+    let cleanupInterval: any;
+    
     sharedLocationCallback = (location: Location.LocationObject) => {
-      setCurrLocation(location);
+      setCurrTestLocation(location);
       const timestamp = new Date().toLocaleTimeString();
       const mode = appState === 'active' ? 'FOREGROUND' : 'BACKGROUND';
       console.log(`[${timestamp}] ${mode} Location updated:`, {
@@ -62,17 +66,23 @@ export default function HomeScreen() {
 
     const setupLocation = async () => {
       try {
-        // make sure bro has permissions
         let { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
           console.log('Foreground permission denied');
           return;
         }
 
-        const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
-        if (backgroundStatus !== 'granted') {
-          console.log('Background permission denied');
-          return;
+        if (Platform.OS !== 'ios') {
+          try {
+            const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+            if (backgroundStatus !== 'granted') {
+              console.log('Background permission denied on Android');
+            }
+          } catch (bgError) {
+            console.log('Background permission request failed on Android:', bgError);
+          }
+        } else {
+          console.log('Skipping background permissions on iOS (Expo Go limitation)');
         }
 
         try {
@@ -83,24 +93,12 @@ export default function HomeScreen() {
         }
 
         const locationConfig = {
-          accuracy: appState === 'active' 
-            ? Location.Accuracy.Highest 
-            : Location.Accuracy.Balanced,
-          timeInterval: appState === 'active' ? 1000 : 30000,
-          distanceInterval: appState === 'active' ? 0 : 2,
-
-          deferredUpdatesInterval: undefined,
-          deferredUpdatesDistance: undefined,
-          
-          ...(appState !== 'background' && {
-            foregroundService: {
-              notificationTitle: 'Location tracking',
-              notificationBody: 'App is tracking your location',
-            },
-          }),
+          accuracy: Location.Accuracy.High,
+          timeInterval: 2000, // CHANGE FOR ACTUAL REALISTIC STUFF
+          distanceInterval: 0, // also this
         };
 
-        console.log(`Setting up location tracking with config for appState '${appState}':`, locationConfig);
+        console.log(`Setting up location tracking for ${Platform.OS}:`, locationConfig);
 
         await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, locationConfig);
 
@@ -108,37 +106,83 @@ export default function HomeScreen() {
       } catch (error) {
         console.error('Error setting up location:', error);
         
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        if (errorMessage.includes('foreground service') || errorMessage.includes('background')) {
-          console.log('Retrying without foreground service...');
-          try {
-            const fallbackConfig = {
-              accuracy: appState === 'active' 
-                ? Location.Accuracy.Highest 
-                : Location.Accuracy.Balanced,
-              timeInterval: appState === 'active' ? 1000 : 30000, // 1s foreground, 30s background
-              distanceInterval: appState === 'active' ? 0 : 5,
-              deferredUpdatesInterval: undefined, 
-              deferredUpdatesDistance: undefined,
-            };
-            
-            await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, fallbackConfig);
-            console.log('Location tracking started with fallback config');
-          } catch (fallbackError) {
-            console.error('Fallback location setup also failed:', fallbackError);
-          }
+        // Fallback to basic location tracking
+        console.log('Trying fallback location setup...');
+        try {
+          const fallbackConfig = {
+            accuracy: Location.Accuracy.High,
+            timeInterval: Platform.OS === 'ios' ? 3000 : 1000,
+            distanceInterval: 2,
+          };
+          
+          await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, fallbackConfig);
+          console.log('Location tracking started with fallback config');
+        } catch (fallbackError) {
+          console.error('Fallback location setup also failed:', fallbackError);
+          
+          // Final fallback: Use simple periodic getCurrentPosition (no background task)
+          console.log('Using periodic getCurrentPosition as final fallback...');
+          
+          const periodicLocationFetch = () => {
+            Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.High,
+            }).then((location) => {
+              if (sharedLocationCallback) {
+                sharedLocationCallback(location);
+              }
+            }).catch((getCurrentError) => {
+              console.log('getCurrentPosition failed:', getCurrentError);
+            });
+          };
+          
+          // Get location immediately
+          periodicLocationFetch();
+          
+          // Then every 3 seconds for faster updates
+          cleanupInterval = setInterval(periodicLocationFetch, 3000);
         }
       }
     };
 
-    setupLocation();
+    const setupLocationWrapper = async () => {
+      try {
+        await setupLocation();
+      } catch {
+        // If setupLocation fails completely, use our own periodic fetching
+        console.log('All location methods failed, using basic periodic fetching...');
+        
+        const periodicLocationFetch = () => {
+          Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.High,
+          }).then((location) => {
+            if (sharedLocationCallback) {
+              sharedLocationCallback(location);
+            }
+          }).catch((getCurrentError) => {
+            console.log('getCurrentPosition failed:', getCurrentError);
+          });
+        };
+        
+        // Get location immediately
+        periodicLocationFetch();
+        
+        // Then every 3 seconds for faster updates
+        cleanupInterval = setInterval(periodicLocationFetch, 3000);
+      }
+    };
+
+    setupLocationWrapper();
 
     return () => {
       sharedLocationCallback = null;
       Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME).catch(console.error);
+      if (cleanupInterval) {
+        clearInterval(cleanupInterval);
+      }
     };
   }, [appState]);
 
+  // Get initial location for immediate display
   useEffect(() => {
     const getCurrentLocation = async () => {
       try {
@@ -148,7 +192,7 @@ export default function HomeScreen() {
         let location = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.High,
         });
-        setCurrLocation(location);
+        setCurrTestLocation(location);
         console.log('Initial current location:', location);
       } catch (error) {
         console.error('Error getting current location:', error);
@@ -158,19 +202,24 @@ export default function HomeScreen() {
     getCurrentLocation();
   }, []);
 
+  useEffect(() => {
+    if (detected) {
+      router.push('/(tabs)/detectedPage');
+    }
+  }, [detected]);
+
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="title" style={styles.title}>boop!</ThemedText>
+      <Button onPress={() => setDetected(true)} title="Go to Detected Page" />
       <ThemedText style={styles.status}>
         App State: {appState}
       </ThemedText>
       <ThemedText style={styles.info}>
-        {currLocation?.coords.latitude?.toFixed(6)}, {currLocation?.coords.longitude?.toFixed(6)}
+        {currTestLocation?.coords.latitude?.toFixed(6)}, {currTestLocation?.coords.longitude?.toFixed(6)}
       </ThemedText>
       <ThemedText style={styles.info}>
-        {appState === 'active' 
-          ? 'Tracking: Every 1s (foreground)' 
-          : 'Tracking: Every 30s or 2m (background)'}
+        Tracking: Every {Platform.OS === 'ios' ? '2s or 1m' : '3s or 3m'} ({Platform.OS === 'ios' ? 'iOS foreground only' : 'Android with background'})
       </ThemedText>
     </ThemedView>
   );
