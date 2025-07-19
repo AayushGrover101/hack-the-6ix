@@ -83,7 +83,7 @@ const config = {
   authRequired: false,
   auth0Logout: true,
   secret: process.env.SECRET,
-  baseURL: process.env.BASE_URL || 'http://localhost:3000',
+  baseURL: process.env.BASE_URL || 'https://hack-the-6ix.onrender.com/',
   clientID: process.env.CLIENT_ID,
   issuerBaseURL: process.env.AUTH0_ISSUER_BASE_URL || 'https://dev-sap6daz2obvosbk4.ca.auth0.com',
 };
