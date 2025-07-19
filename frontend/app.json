@@ -10,14 +10,27 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.HT6"
+      "bundleIdentifier": "com.anonymous.HT6",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app needs access to location when open to provide location-based features.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to location in the background to track your movements and provide location-based services.",
+        "NSLocationAlwaysUsageDescription": "This app needs access to location in the background to track your movements and provide location-based services.",
+        "UIBackgroundModes": ["location"]
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION", 
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -26,6 +39,18 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow HT6 to use your location to provide location-based features.",
+          "locationAlwaysPermission": "Allow HT6 to use your location in the background to track your movements.",
+          "locationWhenInUsePermission": "Allow HT6 to use your location when the app is open.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      "expo-task-manager",
       [
         "expo-splash-screen",
         {
