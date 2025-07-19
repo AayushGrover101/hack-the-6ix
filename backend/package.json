@@ -17,5 +17,8 @@
     "graphql": "^15.10.1",
     "mongoose": "^8.16.4",
     "nodemon": "^3.1.10"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.15"
   }
 }
