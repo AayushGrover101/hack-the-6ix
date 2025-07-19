@@ -12,34 +12,30 @@ import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 
 export default function TabTwoScreen() {
-  const [buzzDuration, setBuzzDuration] = useState(200); // 100-500ms
-  const [waitTime, setWaitTime] = useState(500); // 0-1500ms
+  const [buzzDuration, setBuzzDuration] = useState(200);
+  const [waitTime, setWaitTime] = useState(500);
   const [toggleVibrate, setToggleVibrate] = useState(false);
   const intervalRef = useRef<number | null>(null);
 
+  // make bzzzzzz
   useEffect(() => {
     if (toggleVibrate) {
-      // Clear any existing interval
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
 
-      // Create repeating vibration with slider-controlled interval
       const startRepeatingVibration = () => {
-        // Vibrate immediately
-        Vibration.vibrate(buzzDuration); // Use buzz duration from slider
+        Vibration.vibrate(buzzDuration);
         
-        // Set up interval for repeating vibrations
         const interval = setInterval(() => {
-          Vibration.vibrate(buzzDuration); // Use buzz duration from slider
-        }, waitTime); // Use wait time from slider
-        
+          Vibration.vibrate(buzzDuration);
+        }, waitTime);
+
         intervalRef.current = interval;
       };
 
       startRepeatingVibration();
     } else {
-      // Stop everything
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
@@ -47,7 +43,6 @@ export default function TabTwoScreen() {
       Vibration.cancel();
     }
 
-    // Cleanup on unmount
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);

@@ -1,75 +1,252 @@
 import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { router } from 'expo-router';
+import { useState, useEffect } from 'react';
+import { Platform, StyleSheet, AppState, Button } from 'react-native';
 
 import { HelloWave } from '@/components/HelloWave';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import * as Location from 'expo-location';
+import * as TaskManager from 'expo-task-manager';
+
+const LOCATION_TASK_NAME = 'background-location-task';
+let sharedLocationCallback: ((location: Location.LocationObject) => void) | null = null;
+
+// location task for background updates
+TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }: any) => {
+  if (error) {
+    console.error('Background location task error:', error);
+    return;
+  }
+  if (data) {
+    const { locations } = data;
+    const timestamp = new Date().toLocaleTimeString();
+    console.log(`[${timestamp}] Background location task received ${locations?.length} locations`);
+    
+    if (locations && locations.length > 0 && sharedLocationCallback) {
+      const callback = sharedLocationCallback;
+      callback(locations[0]);
+    }
+  }
+});
 
 export default function HomeScreen() {
+  const [appState, setAppState] = useState(AppState.currentState);
+  const [currTestLocation, setCurrTestLocation] = useState<Location.LocationObject | null>(null);
+  const [detected, setDetected] = useState<boolean>(false); // TODO: make this a context or global state or smth
+  // const [toggleDND, setToggleDND] = useState<boolean>(false);
+
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: typeof AppState.currentState) => {
+      setAppState(nextAppState);
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    let cleanupInterval: any;
+    
+    sharedLocationCallback = (location: Location.LocationObject) => {
+      setCurrTestLocation(location);
+      const timestamp = new Date().toLocaleTimeString();
+      const mode = appState === 'active' ? 'FOREGROUND' : 'BACKGROUND';
+      console.log(`[${timestamp}] ${mode} Location updated:`, {
+        lat: location.coords.latitude,
+        lng: location.coords.longitude,
+        accuracy: location.coords.accuracy,
+        timestamp: location.timestamp
+      });
+    };
+
+    const setupLocation = async () => {
+      try {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          console.log('Foreground permission denied');
+          return;
+        }
+
+        if (Platform.OS !== 'ios') {
+          try {
+            const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+            if (backgroundStatus !== 'granted') {
+              console.log('Background permission denied on Android');
+            }
+          } catch (bgError) {
+            console.log('Background permission request failed on Android:', bgError);
+          }
+        } else {
+          console.log('Skipping background permissions on iOS (Expo Go limitation)');
+        }
+
+        try {
+          await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+          console.log('Stopped existing location updates');
+        } catch {
+          console.log('No existing location updates to stop');
+        }
+
+        const locationConfig = {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 2000, // CHANGE FOR ACTUAL REALISTIC STUFF
+          distanceInterval: 0, // also this
+        };
+
+        console.log(`Setting up location tracking for ${Platform.OS}:`, locationConfig);
+
+        await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, locationConfig);
+
+        console.log('Location tracking started successfully');
+      } catch (error) {
+        console.error('Error setting up location:', error);
+        
+        // Fallback to basic location tracking
+        console.log('Trying fallback location setup...');
+        try {
+          const fallbackConfig = {
+            accuracy: Location.Accuracy.High,
+            timeInterval: Platform.OS === 'ios' ? 3000 : 1000,
+            distanceInterval: 2,
+          };
+          
+          await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, fallbackConfig);
+          console.log('Location tracking started with fallback config');
+        } catch (fallbackError) {
+          console.error('Fallback location setup also failed:', fallbackError);
+          
+          // Final fallback: Use simple periodic getCurrentPosition (no background task)
+          console.log('Using periodic getCurrentPosition as final fallback...');
+          
+          const periodicLocationFetch = () => {
+            Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.High,
+            }).then((location) => {
+              if (sharedLocationCallback) {
+                sharedLocationCallback(location);
+              }
+            }).catch((getCurrentError) => {
+              console.log('getCurrentPosition failed:', getCurrentError);
+            });
+          };
+          
+          // Get location immediately
+          periodicLocationFetch();
+          
+          // Then every 3 seconds for faster updates
+          cleanupInterval = setInterval(periodicLocationFetch, 3000);
+        }
+      }
+    };
+
+    const setupLocationWrapper = async () => {
+      try {
+        await setupLocation();
+      } catch {
+        // If setupLocation fails completely, use our own periodic fetching
+        console.log('All location methods failed, using basic periodic fetching...');
+        
+        const periodicLocationFetch = () => {
+          Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.High,
+          }).then((location) => {
+            if (sharedLocationCallback) {
+              sharedLocationCallback(location);
+            }
+          }).catch((getCurrentError) => {
+            console.log('getCurrentPosition failed:', getCurrentError);
+          });
+        };
+        
+        // Get location immediately
+        periodicLocationFetch();
+        
+        // Then every 3 seconds for faster updates
+        cleanupInterval = setInterval(periodicLocationFetch, 3000);
+      }
+    };
+
+    setupLocationWrapper();
+
+    return () => {
+      sharedLocationCallback = null;
+      Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME).catch(console.error);
+      if (cleanupInterval) {
+        clearInterval(cleanupInterval);
+      }
+    };
+  }, [appState]);
+
+  // Get initial location for immediate display
+  useEffect(() => {
+    const getCurrentLocation = async () => {
+      try {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') return;
+
+        let location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        });
+        setCurrTestLocation(location);
+        console.log('Initial current location:', location);
+      } catch (error) {
+        console.error('Error getting current location:', error);
+      }
+    };
+
+    getCurrentLocation();
+  }, []);
+
+  useEffect(() => {
+    if (detected) {
+      router.push('/(tabs)/detectedPage');
+    }
+  }, [detected]);
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <ThemedView style={styles.container}>
+      <ThemedText type="title" style={styles.title}>boop!</ThemedText>
+      <Button onPress={() => setDetected(true)} title="Go to Detected Page" />
+      <ThemedText style={styles.status}>
+        App State: {appState}
+      </ThemedText>
+      <ThemedText style={styles.info}>
+        {currTestLocation?.coords.latitude?.toFixed(6)}, {currTestLocation?.coords.longitude?.toFixed(6)}
+      </ThemedText>
+      <ThemedText style={styles.info}>
+        Tracking: Every {Platform.OS === 'ios' ? '2s or 1m' : '3s or 3m'} ({Platform.OS === 'ios' ? 'iOS foreground only' : 'Android with background'})
+      </ThemedText>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
+  container : {
+    flex: 1,
+    padding: 16,
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    backgroundColor: '#f0f0f0',
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  title : {
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 20,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  status: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 10,
   },
+  info: {
+    fontSize: 14,
+    color: '#888',
+    textAlign: 'center',
+    marginTop: 10,
+  }
 });
