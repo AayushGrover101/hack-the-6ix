@@ -3,6 +3,11 @@ import { graphqlHTTP } from 'express-graphql';
 import graphql from 'graphql';
 import cors from 'cors';
 import bodyParser from 'body-parser';
+import dotenv from 'dotenv';
+import mongoose from 'mongoose';
+
+dotenv.config();
+
 const QueryRoot = new graphql.GraphQLObjectType({
   name: 'Query',
   fields: () => ({
