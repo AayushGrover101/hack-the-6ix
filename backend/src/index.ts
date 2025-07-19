@@ -1,36 +1,36 @@
-import express from 'express';
-import { graphqlHTTP } from 'express-graphql';
-import graphql from 'graphql';
-import cors from 'cors';
-import bodyParser from 'body-parser';
-import dotenv from 'dotenv';  
-import mongoose from 'mongoose';
+import { ApolloServer } from '@apollo/server';
+import { startStandaloneServer } from '@apollo/server/standalone';
+import dotenv from 'dotenv';
+import { typeDefs } from './schema.js';
+import { resolvers } from './resolvers.js';
+import { verifyToken } from './utils/auth.js';
 
 dotenv.config();
 
-const QueryRoot = new graphql.GraphQLObjectType({
-  name: 'Query',
-  fields: () => ({
-    hello: {
-      type: graphql.GraphQLString,
-      resolve: () => "Hello world!"
-    }
-  })
-})
+const users = [
+  { id: '1', username: 'alice', password: '1234' },
+  { id: '2', username: 'bob', password: 'abcd' }
+];
 
-const schema = new graphql.GraphQLSchema({ query: QueryRoot });
+const server = new ApolloServer({
+  typeDefs,
+  resolvers,
+});
 
-const app = express()
-app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use('/api', graphqlHTTP({
-  schema: schema,
-  graphiql: true,
-}));
+async function start() {
+  const { url } = await startStandaloneServer(server, {
+    context: async ({ req }) => {
+      const authHeader = req.headers.authorization || '';
+      const token = authHeader.replace('Bearer ', '');
+      const decoded = verifyToken(token);
+      const user = decoded && typeof decoded === 'object' && 'userId' in decoded
+        ? users.find((u) => u.id === decoded.userId)
+        : null;
+      return { user };
+    },
+    listen: { port: 4000 },
+  });
 
-app.listen(4000, () => {
-  console.log('Server is running on http://localhost:4000/api');
-})
-
-
+  console.log(`🚀 Apollo Server ready at ${url}`);
+}
+start();
