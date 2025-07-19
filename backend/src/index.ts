@@ -5,7 +5,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import { GraphQLObjectType, GraphQLSchema, GraphQLString } from 'graphql';
-import schema from './schema';
+import schema from './schema.ts';
 
 dotenv.config();
 
