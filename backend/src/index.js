@@ -1,5 +1,4 @@
 import express from 'express';
-import { auth } from 'express-openid-connect';
 import connectDB from './config/database.js';
 import User from './models/User.js';
 import Group from './models/Group.js';
@@ -8,9 +7,6 @@ import { calculateDistance, isWithinRadius, direction } from './utils/proximity.
 import { Server } from 'socket.io';
 import { createServer } from 'http';
 import cors from 'cors';
-import { expressjwt as jwt } from 'express-jwt';
-import jwksRsa from 'jwks-rsa';
-import { decode as jwtDecode } from 'jsonwebtoken';
 
 const app = express();
 const server = createServer(app);
@@ -34,121 +30,119 @@ app.use(cors({
 
 app.use(express.json());
 
-// JWT verification middleware for React Native
-const verifyJwt = jwt({
-  secret: jwksRsa.expressJwtSecret({
-    cache: true,
-    rateLimit: true,
-    jwksRequestsPerMinute: 5,
-    jwksUri: `${process.env.AUTH0_ISSUER_BASE_URL || 'https://dev-sap6daz2obvosbk4.ca.auth0.com'}/.well-known/jwks.json`
-  }),
-  audience: process.env.AUTH0_AUDIENCE || 'https://your-api-identifier',
-  issuer: process.env.AUTH0_ISSUER_BASE_URL || 'https://dev-sap6daz2obvosbk4.ca.auth0.com',
-  algorithms: ['RS256']
-});
+// Hard-coded users
+const HARDCODED_USERS = {
+  '1': {
+    uid: 'user1',
+    email: 'alice@example.com',
+    name: 'Alice Johnson',
+    profilePicture: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face'
+  },
+  '2': {
+    uid: 'user2',
+    email: 'bob@example.com',
+    name: 'Bob Smith',
+    profilePicture: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face'
+  },
+  '3': {
+    uid: 'user3',
+    email: 'charlie@example.com',
+    name: 'Charlie Brown',
+    profilePicture: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face'
+  }
+};
 
-// Middleware to handle both web OAuth and React Native JWT
+// Simple authentication middleware using user ID in headers
 const authenticateUser = async (req, res, next) => {
   try {
-    // Check if it's a React Native request (has Authorization header)
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
-      // React Native JWT flow
-      const token = req.headers.authorization.substring(7);
-      const decoded = jwtDecode(token);
-      
-      if (decoded && decoded.sub) {
-        req.oidc = {
-          isAuthenticated: () => true,
-          user: {
-            sub: decoded.sub,
-            email: decoded.email,
-            name: decoded.name || decoded.nickname,
-            picture: decoded.picture
-          }
-        };
+    const userId = req.headers['x-user-id'] || req.headers['user-id'];
+    
+    if (userId && HARDCODED_USERS[userId]) {
+      req.user = HARDCODED_USERS[userId];
+      req.isAuthenticated = true;
+      console.log(`User authenticated: ${req.user.name} (${userId})`);
+    } else {
+      req.isAuthenticated = false;
+      if (userId) {
+        console.log(`Invalid user ID: ${userId}`);
       }
     }
-    // If no Authorization header, let express-openid-connect handle it (web flow)
+    
     next();
   } catch (error) {
     console.error('Authentication error:', error);
+    req.isAuthenticated = false;
     next();
   }
 };
 
 app.use(authenticateUser);
 
-// Web OAuth configuration (only for web browsers)
-const config = {
-  authRequired: false,
-  auth0Logout: true,
-  secret: process.env.SECRET,
-  baseURL: process.env.BASE_URL || 'https://hack-the-6ix.onrender.com/',
-  clientID: process.env.CLIENT_ID,
-  issuerBaseURL: process.env.AUTH0_ISSUER_BASE_URL || 'https://dev-sap6daz2obvosbk4.ca.auth0.com',
-};
-
-app.use(auth(config));
-
-// Middleware to automatically create user after authentication
+// Middleware to automatically create/update user in database
 app.use(async (req, res, next) => {
-  if (req.oidc.isAuthenticated() && req.oidc.user) {
+  if (req.isAuthenticated && req.user) {
     try {
-      const uid = req.oidc.user.sub;
-      const email = req.oidc.user.email;
-      const name = req.oidc.user.name || req.oidc.user.nickname || email.split('@')[0];
-      const profilePicture = req.oidc.user.picture || null;
+      const uid = req.user.uid;
+      const email = req.user.email;
+      const name = req.user.name;
+      const profilePicture = req.user.profilePicture;
       
       // Check if user already exists by uid
       let user = await User.findOne({ uid });
       
       if (!user) {
-        // Also check if user exists by email to avoid duplicates
-        user = await User.findOne({ email });
+        // Create new user
+        user = new User({
+          uid,
+          email,
+          name,
+          profilePicture,
+          location: null,
+          groupId: null
+        });
         
-        if (user) {
-          // Update existing user with new uid if they don't have one
-          if (!user.uid) {
-            user.uid = uid;
-            user.name = name;
-            user.profilePicture = profilePicture;
-            await user.save();
-            console.log(`Updated existing user with uid: ${name} (${email})`);
-          }
-        } else {
-          // Create new user with data from Google authentication
-          user = new User({
-            uid,
-            email,
-            name,
-            profilePicture,
-            location: null,
-            groupId: null
-          });
-          
+        await user.save();
+        console.log(`Created hard-coded user: ${name} (${email})`);
+      } else {
+        // Update existing user if needed
+        if (user.name !== name || user.email !== email || user.profilePicture !== profilePicture) {
+          user.name = name;
+          user.email = email;
+          user.profilePicture = profilePicture;
           await user.save();
-          console.log(`Auto-created user: ${name} (${email})`);
+          console.log(`Updated hard-coded user: ${name} (${email})`);
         }
       }
     } catch (error) {
-      console.error('Error in auto-user creation middleware:', error);
-      // Don't block the request if user creation fails
+      console.error('Error in user creation middleware:', error);
     }
   }
   next();
 });
 
+// Get available users for login
+app.get('/available-users', (req, res) => {
+  const users = Object.values(HARDCODED_USERS).map(user => ({
+    uid: user.uid,
+    name: user.name,
+    email: user.email,
+    profilePicture: user.profilePicture
+  }));
+  
+  res.json({ users });
+});
+
 app.get('/', (req, res) => {
-  res.send(req.oidc.isAuthenticated() ? 'Logged in' : 'Logged out');
+  res.send(req.isAuthenticated ? `Logged in as ${req.user.name}` : 'Not logged in');
 });
 
 app.post('/users', async (req, res) => {
   try {
-    if (!req.oidc.isAuthenticated()) {
+    if (!req.isAuthenticated) {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const uid = req.oidc.user.sub;
+    const uid = req.user.uid;
     const user = await User.findOne({ uid });
     
     if (!user) {
@@ -186,7 +180,7 @@ app.post('/groups', async (req, res) => {
   try {
     const { name } = req.body;
 
-    const uid = req.oidc.user.sub; // Use Auth0 ID as uid
+    const uid = req.user.uid;
     
     if (!name || !uid) {
       return res.status(400).json({ error: 'Group name and user authentication are required' });
@@ -203,7 +197,7 @@ app.post('/groups', async (req, res) => {
     const group = new Group({
       groupId,
       name,
-      users: [uid] // Use the Auth0 ID as uid
+      users: [uid]
     });
     
     await group.save();
@@ -237,7 +231,7 @@ app.get('/groups/:groupId', async (req, res) => {
 app.post('/join-group/:groupId', async (req, res) => {
   try {
     const { groupId } = req.params;
-    const uid = req.oidc.user.sub; // Use Auth0 ID as uid
+    const uid = req.user.uid;
     
     if (!uid) {
       return res.status(400).json({ error: 'User authentication required' });
@@ -282,7 +276,7 @@ app.post('/join-group/:groupId', async (req, res) => {
 app.post('/leave-group/:groupId', async (req, res) => {
   try {
     const { groupId } = req.params;
-    const uid = req.oidc.user.sub; // Use Auth0 ID as uid
+    const uid = req.user.uid;
     
     if (!uid) {
       return res.status(400).json({ error: 'User authentication required' });
@@ -679,9 +673,6 @@ io.on('connection', (socket) => {
     console.log('User disconnected');
   });
 });
-
-
-
 
 server.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
