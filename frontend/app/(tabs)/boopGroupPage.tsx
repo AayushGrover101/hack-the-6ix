@@ -7,10 +7,12 @@ import { PageHeader } from '@/components/PageHeader';
 import { ThemedText } from '@/components/ThemedText';
 import { BoopLogItem } from '@/components/BoopLogItem';
 import { InviteModal } from '@/components/InviteModal';
+import { LeaveGroupModal } from '@/components/LeaveGroupModal';
 
 export default function TabThreeScreen() {
   const [isDoNotDisturb, setIsDoNotDisturb] = React.useState(false);
   const [isInviteModalVisible, setIsInviteModalVisible] = React.useState(false);
+  const [isLeaveModalVisible, setIsLeaveModalVisible] = React.useState(false);
   const insets = useSafeAreaInsets();
 
   const members = [
@@ -66,6 +68,20 @@ export default function TabThreeScreen() {
 
   const handleCloseModal = () => {
     setIsInviteModalVisible(false);
+  };
+
+  const handleLeaveButtonPress = () => {
+    setIsLeaveModalVisible(true);
+  };
+
+  const handleCloseLeaveModal = () => {
+    setIsLeaveModalVisible(false);
+  };
+
+  const handleLeaveGroup = () => {
+    // TODO: Implement leave group functionality
+    console.log('Leaving group...');
+    // You can add navigation logic here to go back to home or show a different screen
   };
 
   return (
@@ -128,7 +144,11 @@ export default function TabThreeScreen() {
                   />
                 </Svg>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.actionButton, styles.leaveButton]} activeOpacity={0.6}>
+              <TouchableOpacity 
+                style={[styles.actionButton, styles.leaveButton]} 
+                activeOpacity={0.6}
+                onPress={handleLeaveButtonPress}
+              >
                 <Svg width={24} height={24} viewBox="0 0 23 24" fill="none">
                   <Path 
                     d="M15 7C16.1046 7 17 6.10457 17 5C17 3.89543 16.1046 3 15 3C13.8954 3 13 3.89543 13 5C13 6.10457 13.8954 7 15 7Z" 
@@ -252,6 +272,14 @@ export default function TabThreeScreen() {
         visible={isInviteModalVisible}
         onClose={handleCloseModal}
         inviteCode="6YFU78R"
+      />
+
+      {/* Leave Group Modal */}
+      <LeaveGroupModal
+        visible={isLeaveModalVisible}
+        onClose={handleCloseLeaveModal}
+        onLeaveGroup={handleLeaveGroup}
+        groupName="75% HTN"
       />
     </View>
   );

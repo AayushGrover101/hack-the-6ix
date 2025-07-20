@@ -16,6 +16,7 @@ import { ThemedText } from "@/components/ThemedText";
 import Svg, { Path } from "react-native-svg";
 import { PageHeader } from "@/components/PageHeader";
 import { useState } from "react";
+import { useRouter } from "expo-router";
 
 interface ProfilePageProps {
   name?: string;
@@ -30,6 +31,7 @@ export default function TabTwoScreen({
   group = "75% HTN",
   photo = "https://media.licdn.com/dms/image/v2/D5603AQF6gPTl46j53w/profile-displayphoto-shrink_400_400/B56ZX4zDxuHQAk-/0/1743635890387?e=1755734400&v=beta&t=NyhNb_F72PO9N5KdJpaUjP7PNDpyQy8rlP1JLSTSK4c"
 }: ProfilePageProps) {
+  const router = useRouter();
   const [editableName, setEditableName] = useState(name);
   const [editableEmail, setEditableEmail] = useState(email);
   const [editableGroup, setEditableGroup] = useState(group);
@@ -38,7 +40,6 @@ export default function TabTwoScreen({
   const handleEditPress = () => {
     if (isEditing) {
       setIsEditing(false);
-      Alert.alert("Success", "Profile updated successfully!");
     } else {
       setIsEditing(true);
     }
@@ -49,6 +50,11 @@ export default function TabTwoScreen({
     setEditableEmail(email);
     setEditableGroup(group);
     setIsEditing(false);
+  };
+
+  const handleLogout = () => {
+    // Navigate to the login screen (index route)
+    router.replace("/");
   };
 
   return (
@@ -174,7 +180,7 @@ export default function TabTwoScreen({
           </ThemedView>
         </ThemedView>
 
-        <TouchableOpacity style={styles.logoutButton}>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" style={styles.logoutIcon}>
             <Path
               d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9M16 17L21 12M21 12L16 7M21 12H9"
