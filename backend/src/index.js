@@ -635,7 +635,7 @@ app.post('/boop', async (req, res) => {
       const distanceToBooper = calculateDistance(boopLocation, booperLocation);
       const distanceToBoopee = calculateDistance(boopLocation, boopeeLocation);
 
-      if (distanceToBooper > 10 || distanceToBoopee > 10) {
+      if (distanceToBooper > 100 || distanceToBoopee > 100) {
         return res.status(400).json({ error: 'Users must be within 10 meters to boop' });
       }
     }
