@@ -970,8 +970,35 @@ io.on('connection', (socket) => {
   // Manual boop is no longer needed - boops happen automatically when users get close
   // socket.on('boop', ...) - REMOVED
 
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     console.log('User disconnected');
+    
+    // Find which user disconnected by checking all rooms this socket was in
+    const rooms = Array.from(socket.rooms);
+    const userRooms = rooms.filter(room => room !== socket.id); // Exclude socket's own room
+    
+    if (userRooms.length > 0) {
+      const uid = userRooms[0]; // Get the user's UID from their room
+      console.log(`User ${uid} disconnected, clearing their location`);
+      
+      try {
+        // Find and update the user
+        const user = await User.findOne({ uid });
+        if (user) {
+          // Clear location and set offline status
+          user.location = null;
+          user.isOnline = false;
+          user.lastSeen = new Date();
+          await user.save();
+          
+          console.log(`Cleared location for user: ${user.name} (${uid})`);
+        } else {
+          console.log(`User not found in database: ${uid}`);
+        }
+      } catch (error) {
+        console.error('Error clearing user location on disconnect:', error);
+      }
+    }
   });
 });
 
