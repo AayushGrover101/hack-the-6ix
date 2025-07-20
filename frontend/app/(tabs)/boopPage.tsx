@@ -6,10 +6,12 @@ import {
   Button,
   Vibration,
   View,
+  TextInput,
 } from "react-native";
 import { Image } from "expo-image";
 import Slider from "@react-native-community/slider";
 import { LinearGradient } from "expo-linear-gradient";
+import { io, Socket } from "socket.io-client";
 
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
@@ -21,6 +23,14 @@ const LOCATION_TASK_NAME = "background-location-task";
 let sharedLocationCallback:
   | ((location: Location.LocationObject) => void)
   | null = null;
+
+// Socket.IO connection
+const SOCKET_URL = "https://hack-the-6ix.onrender.com"; // Deployed backend URL
+// For local development, use one of these:
+// const SOCKET_URL = "http://10.0.2.2:3000"; // Android emulator
+// const SOCKET_URL = "http://localhost:3000"; // iOS simulator
+// const SOCKET_URL = "http://YOUR_LOCAL_IP:3000"; // Physical device
+let socket: Socket | null = null;
 
 // location task for background updates
 TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }: any) => {
@@ -44,7 +54,10 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }: any) => {
 
 export default function TabOneScreen() {
   const [appState, setAppState] = useState(AppState.currentState);
-  const [detected, setDetected] = useState<boolean>(false); // TODO: make this a context or global state or smth
+  const [detected, setDetected] = useState<boolean>(false);
+  const [nearbyUser, setNearbyUser] = useState<any>(null);
+  const [distance, setDistance] = useState<number>(0);
+  const [userUid, setUserUid] = useState<string>("test-user-123"); // For testing - replace with actual user UID
 
   const [buzzDuration, setBuzzDuration] = useState(200);
   const [waitTime, setWaitTime] = useState(500);
@@ -56,6 +69,18 @@ export default function TabOneScreen() {
 
   // Slider state
   const [sliderValue, setSliderValue] = useState(0); // 0-100, represents progress percentage
+
+  // Update slider value based on distance
+  useEffect(() => {
+    if (distance > 0 && distance <= 100) {
+      // Inverse relationship: closer distance = higher slider value
+      // 100m = 0%, 0m = 95% (max slider value)
+      const newSliderValue = Math.max(0, 95 - (distance / 100) * 95);
+      setSliderValue(newSliderValue);
+    } else if (distance > 100) {
+      setSliderValue(0);
+    }
+  }, [distance]);
 
   // Helper function to calculate bottom gradient color based on intensity
   const getBottomGradientColor = (intensity: number) => {
@@ -70,6 +95,63 @@ export default function TabOneScreen() {
   const getTopGradientColor = (isBlue: boolean) => {
     return isBlue ? "#4785EA" : "#F06C6C";
   };
+
+  // Socket.IO connection setup
+  useEffect(() => {
+    // Initialize Socket.IO connection to receive proximity alerts
+    socket = io(SOCKET_URL, {
+      transports: ['websocket', 'polling'],
+      autoConnect: true,
+    });
+
+    socket.on('connect', () => {
+      console.log('Connected to Socket.IO server');
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from Socket.IO server');
+      setDetected(false);
+      setNearbyUser(null);
+    });
+
+    socket.on('proximity_alert', (data) => {
+      console.log('Proximity alert received:', data);
+      const { nearbyUser: user, distance: dist, canBoop } = data;
+      
+      setNearbyUser(user);
+      setDistance(dist);
+      
+      // Set detected to true if user is within proximity range (100m)
+      // This triggers the vibration and UI changes
+      if (dist <= 100) {
+        setDetected(true);
+        console.log(`User detected nearby: ${user.name} at ${dist.toFixed(1)}m`);
+      } else {
+        setDetected(false);
+      }
+    });
+
+    socket.on('boop_happened', (data) => {
+      console.log('Boop happened:', data);
+      // Handle boop event - could trigger special animations or sounds
+    });
+
+    socket.on('boop_success', (data) => {
+      console.log('Boop success:', data);
+      // Handle successful boop
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('Socket.IO connection error:', error);
+    });
+
+    return () => {
+      if (socket) {
+        socket.disconnect();
+        socket = null;
+      }
+    };
+  }, []);
 
   // const [toggleDND, setToggleDND] = useState<boolean>(false);
 
@@ -136,6 +218,15 @@ export default function TabOneScreen() {
         accuracy: location.coords.accuracy,
         timestamp: location.timestamp,
       });
+
+      // Send location update to Socket.IO server
+      if (socket && socket.connected) {
+        socket.emit('update_location', {
+          uid: userUid,
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude
+        });
+      }
     };
 
     const setupLocation = async () => {
@@ -348,8 +439,12 @@ export default function TabOneScreen() {
                 />
               </View>
               <View style={styles.profileInfo}>
-                <ThemedText style={styles.profileName}>Jesse</ThemedText>
-                <ThemedText style={styles.profileDistance}>50m</ThemedText>
+                <ThemedText style={styles.profileName}>
+                  {nearbyUser?.name || "Someone"}
+                </ThemedText>
+                <ThemedText style={styles.profileDistance}>
+                  {distance > 0 ? `${Math.round(distance)}m` : "Nearby"}
+                </ThemedText>
               </View>
             </View>
 
@@ -424,7 +519,15 @@ export default function TabOneScreen() {
                   minimumValue={0}
                   maximumValue={95}
                   value={sliderValue}
-                  onValueChange={setSliderValue}
+                  onValueChange={(value) => {
+                    setSliderValue(value);
+                    // For testing: simulate distance based on slider value
+                    if (value > 0) {
+                      const simulatedDistance = 100 - (value / 95) * 100;
+                      setDistance(simulatedDistance);
+                      setDetected(simulatedDistance <= 100);
+                    }
+                  }}
                   minimumTrackTintColor="#4785EA"
                   maximumTrackTintColor="#d3d3d3"
                 />
@@ -505,10 +608,32 @@ export default function TabOneScreen() {
         onPress={() => setDetected(!detected)}
         title={detected ? "Stop Detection" : "Start Detection"}
       />
-      {/* <Button
-          onPress={() => setDetected(!detected)}
-          title={detected ? "Stop Detection" : "Start Detection"}
-        /> */}
+      
+      {/* Testing Controls */}
+      <View style={styles.testingContainer}>
+        <ThemedText style={styles.testingLabel}>Testing User UID:</ThemedText>
+        <TextInput
+          style={styles.testingInput}
+          value={userUid}
+          onChangeText={setUserUid}
+          placeholder="Enter user UID for testing"
+          placeholderTextColor="#999"
+        />
+        <ThemedText style={styles.testingInfo}>
+          Current: {userUid}
+        </ThemedText>
+        <ThemedText style={styles.testingInfo}>
+          Socket: {socket?.connected ? "Connected" : "Disconnected"}
+        </ThemedText>
+        <ThemedText style={styles.testingInfo}>
+          Detected: {detected ? "Yes" : "No"}
+        </ThemedText>
+        {nearbyUser && (
+          <ThemedText style={styles.testingInfo}>
+            Nearby: {nearbyUser.name} ({distance.toFixed(1)}m)
+          </ThemedText>
+        )}
+      </View>
     </ThemedView>
   );
 }
@@ -792,5 +917,34 @@ const styles = StyleSheet.create({
     marginTop: -50,
     marginBottom: 20,
     objectFit: "contain",
+  },
+  testingContainer: {
+    marginTop: 20,
+    padding: 16,
+    backgroundColor: "rgba(255,255,255,0.9)",
+    borderRadius: 8,
+    marginHorizontal: 16,
+  },
+  testingLabel: {
+    fontSize: 16,
+    fontFamily: "GeneralSanMedium",
+    color: "#737373",
+    marginBottom: 8,
+  },
+  testingInput: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 4,
+    padding: 8,
+    fontSize: 14,
+    fontFamily: "GeneralSanMedium",
+    color: "#333",
+    marginBottom: 8,
+  },
+  testingInfo: {
+    fontSize: 12,
+    fontFamily: "GeneralSanMedium",
+    color: "#666",
+    marginBottom: 4,
   },
 });
