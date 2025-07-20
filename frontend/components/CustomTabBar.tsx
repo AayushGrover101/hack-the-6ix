@@ -24,7 +24,7 @@ const tabs: TabItem[] = [
   {
     name: "boopGroupPage",
     route: "/boopGroupPage",
-    label: "Group",
+    label: "boop group",
     color: "#A76CF0",
     backgroundColor: "#F0E6FF",
     imagePath: require("@/assets/images/nav/boopGroup.svg"),

@@ -1,5 +1,5 @@
 import { Image } from "expo-image";
-import { Button, Platform, StyleSheet, Vibration } from "react-native";
+import { Button, Platform, StyleSheet, Vibration, Text, View } from "react-native";
 import { useState, useEffect, useRef } from "react";
 
 import ParallaxScrollView from "@/components/ParallaxScrollView";
@@ -19,7 +19,13 @@ export default function TabTwoScreen() {
         />
       }
     >
-      
+      <View style={styles.content}>
+        <Text style={styles.title}>Profile</Text>
+        <Text style={styles.subtitle}>Welcome to your profile page!</Text>
+        <View style={styles.infoContainer}>
+          <Text style={styles.infoText}>This is where you can manage your profile settings and preferences.</Text>
+        </View>
+      </View>
     </ParallaxScrollView>
   );
 }
@@ -30,6 +36,31 @@ const styles = StyleSheet.create({
     bottom: -90,
     left: -35,
     position: "absolute",
+  },
+  content: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 20,
+  },
+  infoContainer: {
+    backgroundColor: '#f5f5f5',
+    padding: 16,
+    borderRadius: 8,
+    width: '100%',
+  },
+  infoText: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
   },
   titleContainer: {
     flexDirection: "row",
