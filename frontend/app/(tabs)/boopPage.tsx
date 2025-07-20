@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Platform,
   StyleSheet,
@@ -6,6 +6,7 @@ import {
   Button,
   Vibration,
   View,
+  TouchableOpacity,
 } from "react-native";
 import { Image } from "expo-image";
 import Slider from "@react-native-community/slider";
@@ -16,6 +17,9 @@ import { ThemedView } from "@/components/ThemedView";
 import ParallaxScrollView from "@/components/ParallaxScrollView";
 import * as Location from "expo-location";
 import * as TaskManager from "expo-task-manager";
+import { useUser, getUserById, User } from "@/contexts/UserContext";
+import { userService, ApiUser } from "@/services/userService";
+import { socketService } from "@/services/socketService";
 
 const LOCATION_TASK_NAME = "background-location-task";
 let sharedLocationCallback:
@@ -57,6 +61,121 @@ export default function TabOneScreen() {
   // Slider state
   const [sliderValue, setSliderValue] = useState(0); // 0-100, represents progress percentage
 
+  // User context
+  const { user, loading, error, switchUser } = useUser();
+  
+  // Location and nearby users state
+  const [currentLocation, setCurrentLocation] = useState<Location.LocationObject | null>(null);
+  const [nearbyUsers, setNearbyUsers] = useState<ApiUser[]>([]);
+  const [isSearchingNearby, setIsSearchingNearby] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
+  const nearbySearchInterval = useRef<number | null>(null);
+  
+  // Use the first nearby user for display (or fallback to mock)
+  const nearbyUser = nearbyUsers[0] || getUserById('user2');
+
+  // Quick user switcher for testing
+  const handleQuickSwitch = async () => {
+    const currentUid = user?.uid;
+    const nextUid = currentUid === 'user1' ? 'user2' : 
+                   currentUid === 'user2' ? 'user3' : 'user1';
+    await switchUser(nextUid);
+  };
+
+  // Initialize Socket.IO connection
+  const initializeSocket = useCallback(async () => {
+    try {
+      await socketService.connect();
+      setSocketConnected(true);
+      
+      // Set up location update listeners
+      socketService.onLocationUpdateSuccess((data) => {
+        console.log('Location update success:', data);
+      });
+      
+      socketService.onLocationUpdateError((error) => {
+        console.error('Location update error:', error);
+      });
+      
+    } catch (error) {
+      console.error('Failed to connect to Socket.IO:', error);
+      setSocketConnected(false);
+    }
+  }, []);
+
+  // Update location via Socket.IO
+  const updateLocationOnBackend = useCallback(async (location: Location.LocationObject) => {
+    if (!user?.uid || !socketConnected) return;
+    
+    try {
+      socketService.updateLocation(
+        user.uid,
+        location.coords.latitude,
+        location.coords.longitude
+      );
+      console.log('Location sent via Socket.IO');
+    } catch (error) {
+      console.error('Failed to update location via Socket.IO:', error);
+    }
+  }, [user?.uid, socketConnected]);
+
+  // Search for nearby users via REST API
+  const searchNearbyUsers = useCallback(async (location: Location.LocationObject) => {
+    if (!user?.uid) return;
+    
+    try {
+      setIsSearchingNearby(true);
+      const nearby = await userService.getNearbyUsers(
+        location.coords.latitude,
+        location.coords.longitude,
+        1000 // 1km radius
+      );
+      
+      // Filter out the current user from nearby results
+      const filteredNearby = nearby.filter(u => u.uid !== user.uid);
+      setNearbyUsers(filteredNearby);
+      
+      // Set detected to true if we found nearby users
+      const hasNearbyUsers = filteredNearby.length > 0;
+      setDetected(hasNearbyUsers);
+      
+      console.log(`Found ${filteredNearby.length} nearby users:`, filteredNearby.map(u => u.name));
+    } catch (error) {
+      console.error('Failed to search nearby users:', error);
+      // Fall back to no detection on error
+      setDetected(false);
+      setNearbyUsers([]);
+    } finally {
+      setIsSearchingNearby(false);
+    }
+  }, [user?.uid]);
+
+  // Start periodic nearby user search
+  const startNearbySearch = useCallback((location: Location.LocationObject) => {
+    // Clear any existing interval
+    if (nearbySearchInterval.current) {
+      clearInterval(nearbySearchInterval.current);
+    }
+    
+    // Search immediately
+    searchNearbyUsers(location);
+    
+    // Then search every 3 seconds for real-time feel
+    nearbySearchInterval.current = setInterval(() => {
+      searchNearbyUsers(location);
+    }, 3000);
+  }, [searchNearbyUsers]);
+
+  // Stop nearby user search
+  const stopNearbySearch = useCallback(() => {
+    if (nearbySearchInterval.current) {
+      clearInterval(nearbySearchInterval.current);
+      nearbySearchInterval.current = null;
+    }
+    setNearbyUsers([]);
+    setDetected(false);
+  }, []);
+
   // Helper function to calculate bottom gradient color based on intensity
   const getBottomGradientColor = (intensity: number) => {
     // Interpolate between white (255,255,255) and #A76CF0 (167,108,240)
@@ -89,6 +208,19 @@ export default function TabOneScreen() {
       subscription?.remove();
     };
   }, []);
+
+  // Initialize Socket.IO when component mounts and user is available
+  useEffect(() => {
+    if (user?.uid) {
+      initializeSocket();
+    }
+    
+    return () => {
+      // Cleanup socket connection and listeners
+      socketService.removeLocationListeners();
+      stopNearbySearch();
+    };
+  }, [user?.uid, initializeSocket, stopNearbySearch]);
 
   // make bzzzzzzzzz
   useEffect(() => {
@@ -136,6 +268,17 @@ export default function TabOneScreen() {
         accuracy: location.coords.accuracy,
         timestamp: location.timestamp,
       });
+
+      // Update state with current location
+      setCurrentLocation(location);
+      
+      // Update location via Socket.IO
+      updateLocationOnBackend(location);
+      
+      // Start nearby search if we have a user
+      if (user?.uid) {
+        startNearbySearch(location);
+      }
     };
 
     const setupLocation = async () => {
@@ -293,8 +436,12 @@ export default function TabOneScreen() {
       if (cleanupInterval) {
         clearInterval(cleanupInterval);
       }
+      // Cleanup nearby search interval
+      if (nearbySearchInterval.current) {
+        clearInterval(nearbySearchInterval.current);
+      }
     };
-  }, [appState]);
+  }, [appState, updateLocationOnBackend, startNearbySearch, user?.uid]);
 
   // intiial location
   useEffect(() => {
@@ -331,7 +478,15 @@ export default function TabOneScreen() {
         </View>
       </ThemedView>
 
-      {detected ? (
+      {loading ? (
+        <ThemedView style={styles.loadingContainer}>
+          <ThemedText style={styles.loadingText}>Loading user data...</ThemedText>
+        </ThemedView>
+      ) : error ? (
+        <ThemedView style={styles.errorContainer}>
+          <ThemedText style={styles.errorText}>Error: {error}</ThemedText>
+        </ThemedView>
+      ) : detected ? (
         <ThemedView style={[styles.detectionContainer]}>
           <LinearGradient
             colors={[
@@ -343,12 +498,18 @@ export default function TabOneScreen() {
             <View style={styles.profileCard}>
               <View style={styles.profileImageContainer}>
                 <Image
-                  source={require("@/assets/images/adaptive-icon.png")}
+                  source={
+                    nearbyUser?.profilePicture 
+                      ? { uri: nearbyUser.profilePicture }
+                      : require("@/assets/images/adaptive-icon.png")
+                  }
                   style={styles.profileImage}
                 />
               </View>
               <View style={styles.profileInfo}>
-                <ThemedText style={styles.profileName}>Jesse</ThemedText>
+                <ThemedText style={styles.profileName}>
+                  {nearbyUser?.name || 'Unknown User'}
+                </ThemedText>
                 <ThemedText style={styles.profileDistance}>50m</ThemedText>
               </View>
             </View>
@@ -381,7 +542,7 @@ export default function TabOneScreen() {
                     ]}
                   />
 
-                  {/* Moving left avatar */}
+                  {/* Moving left avatar - Current user (Alice) */}
                   <View
                     style={[
                       styles.avatarContainer,
@@ -390,12 +551,16 @@ export default function TabOneScreen() {
                     ]}
                   >
                     <Image
-                      source={require("@/assets/images/adaptive-icon.png")}
+                      source={
+                        user?.profilePicture 
+                          ? { uri: user.profilePicture }
+                          : require("@/assets/images/adaptive-icon.png")
+                      }
                       style={styles.sliderAvatar}
                     />
                   </View>
 
-                  {/* Fixed right avatar */}
+                  {/* Fixed right avatar - Nearby user (Bob) */}
                   <View
                     style={[
                       styles.avatarContainer,
@@ -404,7 +569,11 @@ export default function TabOneScreen() {
                     ]}
                   >
                     <Image
-                      source={require("@/assets/images/adaptive-icon.png")}
+                      source={
+                        nearbyUser?.profilePicture 
+                          ? { uri: nearbyUser.profilePicture }
+                          : require("@/assets/images/adaptive-icon.png")
+                      }
                       style={styles.sliderAvatar}
                     />
                   </View>
@@ -505,6 +674,30 @@ export default function TabOneScreen() {
         onPress={() => setDetected(!detected)}
         title={detected ? "Stop Detection" : "Start Detection"}
       />
+      
+      {/* Debug info */}
+      {user && (
+        <ThemedView style={styles.debugContainer}>
+          <ThemedText style={styles.debugText}>
+            Current User: {user.name} ({user.uid})
+          </ThemedText>
+          <ThemedText style={styles.debugText}>
+            Socket: {socketConnected ? '🟢 Connected' : '🔴 Disconnected'}
+          </ThemedText>
+          <ThemedText style={styles.debugText}>
+            Searching: {isSearchingNearby ? '🔄 Yes' : '⏸️ No'}
+          </ThemedText>
+          {nearbyUsers.length > 0 && (
+            <ThemedText style={styles.debugText}>
+              Nearby: {nearbyUsers.map(u => u.name).join(', ')}
+            </ThemedText>
+          )}
+          <TouchableOpacity style={styles.switchButton} onPress={handleQuickSwitch}>
+            <ThemedText style={styles.switchButtonText}>Quick Switch User</ThemedText>
+          </TouchableOpacity>
+        </ThemedView>
+      )}
+      
       {/* <Button
           onPress={() => setDetected(!detected)}
           title={detected ? "Stop Detection" : "Start Detection"}
@@ -792,5 +985,55 @@ const styles = StyleSheet.create({
     marginTop: -50,
     marginBottom: 20,
     objectFit: "contain",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f0f0f0",
+  },
+  loadingText: {
+    fontFamily: "GeneralSanMedium",
+    fontSize: 16,
+    color: "#737373",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f0f0f0",
+    padding: 20,
+  },
+  errorText: {
+    fontFamily: "GeneralSanMedium",
+    fontSize: 16,
+    color: "#ff6b6b",
+    textAlign: "center",
+  },
+  debugContainer: {
+    backgroundColor: "rgba(0,0,0,0.1)",
+    padding: 10,
+    margin: 10,
+    borderRadius: 8,
+  },
+  debugText: {
+    fontFamily: "GeneralSanMedium",
+    fontSize: 12,
+    color: "#333",
+    textAlign: "center",
+    marginBottom: 2,
+  },
+  switchButton: {
+    backgroundColor: "#4785EA",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 15,
+    marginTop: 8,
+  },
+  switchButtonText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontFamily: "GeneralSanMedium",
+    textAlign: "center",
   },
 });

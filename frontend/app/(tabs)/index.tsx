@@ -13,9 +13,11 @@ import { useBottomTabOverflow } from '@/components/ui/TabBarBackground';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
+import { useUser } from "@/contexts/UserContext";
 
 export default function TabThreeScreen() {
   const router = useRouter();
+  const { user, switchUser } = useUser();
   
   // Animation values
   const logoScale = useRef(new Animated.Value(0)).current;
@@ -24,6 +26,17 @@ export default function TabThreeScreen() {
   const titleTranslateX = useRef(new Animated.Value(-100)).current;
   const buttonOpacity = useRef(new Animated.Value(0)).current;
   const buttonTranslateX = useRef(new Animated.Value(100)).current;
+
+  const users = [
+    { uid: 'user1', name: 'Alice Johnson', color: '#4785EA' },
+    { uid: 'user2', name: 'Bob Smith', color: '#F06C6C' },
+    { uid: 'user3', name: 'Charlie Brown', color: '#A76CF0' }
+  ];
+
+  const handleUserSelect = async (uid: string) => {
+    await switchUser(uid);
+    router.push("/boopPage");
+  };
 
   useEffect(() => {
     // Start animations sequence
@@ -111,11 +124,49 @@ export default function TabThreeScreen() {
         }}
       >
         <ThemedText style={styles.title}>boop your friends!</ThemedText>
+        {user && (
+          <ThemedText style={styles.currentUser}>
+            Current User: {user.name}
+          </ThemedText>
+        )}
       </Animated.View>
+      
+      {/* User Selection Buttons */}
       <Animated.View
         style={{
           opacity: buttonOpacity,
           transform: [{ translateX: buttonTranslateX }],
+          width: '100%',
+          paddingHorizontal: 40,
+        }}
+      >
+        <ThemedText style={styles.selectUserTitle}>Select User:</ThemedText>
+        {users.map((userOption) => (
+          <TouchableOpacity
+            key={userOption.uid}
+            style={[
+              styles.userButton,
+              { 
+                backgroundColor: userOption.color,
+                borderColor: user?.uid === userOption.uid ? '#FFFFFF' : 'transparent',
+                borderWidth: user?.uid === userOption.uid ? 3 : 0,
+              }
+            ]}
+            onPress={() => handleUserSelect(userOption.uid)}
+            activeOpacity={0.7}
+          >
+            <ThemedText style={styles.userButtonText}>
+              {userOption.name}
+            </ThemedText>
+          </TouchableOpacity>
+        ))}
+      </Animated.View>
+      
+      <Animated.View
+        style={{
+          opacity: buttonOpacity,
+          transform: [{ translateX: buttonTranslateX }],
+          marginTop: 20,
         }}
       >
         <TouchableOpacity 
@@ -123,7 +174,7 @@ export default function TabThreeScreen() {
           onPress={() => router.push("/boopPage")}
           activeOpacity={0.7}
         >
-          <ThemedText style={styles.buttonText}>Sign in with google!</ThemedText>
+          <ThemedText style={styles.buttonText}>Continue to App</ThemedText>
         </TouchableOpacity>
       </Animated.View>
     </ThemedView>
@@ -177,5 +228,39 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: "GeneralSanMedium",
     textAlign: "center",
-  }
+  },
+  currentUser: {
+    fontFamily: "GeneralSanMedium",
+    fontSize: 14,
+    color: "#4785EA",
+    textAlign: "center",
+    marginTop: 8,
+  },
+  selectUserTitle: {
+    fontFamily: "GeneralSanMedium",
+    fontSize: 18,
+    color: "#4785EA",
+    textAlign: "center",
+    marginBottom: 15,
+  },
+  userButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 20,
+    marginVertical: 6,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  userButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontFamily: "GeneralSanMedium",
+    textAlign: "center",
+  },
 });

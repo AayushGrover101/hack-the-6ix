@@ -47,6 +47,7 @@
     "react-native-svg": "15.11.2",
     "react-native-web": "~0.20.0",
     "react-native-webview": "13.13.5",
+    "socket.io-client": "^4.8.1",
     "start": "^5.1.0"
   },
   "devDependencies": {
