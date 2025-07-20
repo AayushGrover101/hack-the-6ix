@@ -15,7 +15,7 @@ const port = process.env.PORT || 3000;
 // Initialize Socket.IO with CORS
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: process.env.FRONTEND_URL || ["http://localhost:8081", "http://localhost:3000", "exp://localhost:8081", "https://hack-the-6ix.onrender.com", "*"],
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -24,7 +24,7 @@ const io = new Server(server, {
 connectDB();
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:3000",
+  origin: process.env.FRONTEND_URL || ["http://localhost:8081", "http://localhost:3000", "exp://localhost:8081", "https://hack-the-6ix.onrender.com", "*"],
   credentials: true
 }));
 
