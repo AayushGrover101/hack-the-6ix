@@ -1,30 +1,72 @@
 import React from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Switch, Image } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PageHeader } from '@/components/PageHeader';
 import { ThemedText } from '@/components/ThemedText';
+import { BoopLogItem } from '@/components/BoopLogItem';
 
 export default function TabThreeScreen() {
   const [isDoNotDisturb, setIsDoNotDisturb] = React.useState(false);
+  const insets = useSafeAreaInsets();
 
   const members = [
-    { id: 1, name: 'Aayush', boops: 15, isLeader: true, profilePhoto: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ4YreOWfDX3kK-QLAbAL4ufCPc84ol2MA8Xg&s' },
-    { id: 2, name: 'Jesse', boops: 2, isLeader: false, profilePhoto: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ4YreOWfDX3kK-QLAbAL4ufCPc84ol2MA8Xg&s' },
-    { id: 3, name: 'Weinna', boops: 5, isLeader: false, profilePhoto: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ4YreOWfDX3kK-QLAbAL4ufCPc84ol2MA8Xg&s' },
-    { id: 4, name: 'James', boops: 8, isLeader: false, profilePhoto: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ4YreOWfDX3kK-QLAbAL4ufCPc84ol2MA8Xg&s' },
+    { id: 1, name: 'Aayush', boops: 15, isLeader: true, profilePhoto: 'https://media.discordapp.net/attachments/1316937625369841767/1396338293179678730/aayush-headshot.png?ex=687db8df&is=687c675f&hm=bc5be7250136b230632e1872f85b34e49fe861fd4adb9fd02b232934e34acc23&=&format=webp&quality=lossless&width=84&height=84' },
+    { id: 2, name: 'Jesse', boops: 2, isLeader: false, profilePhoto: 'https://media.discordapp.net/attachments/1316937625369841767/1396338293658091662/jesse-headshot.png?ex=687db8df&is=687c675f&hm=5a836c72519689953d0a3aa599e44c69b62ab522ea42e1f8470be688fe1026d0&=&format=webp&quality=lossless&width=84&height=84' },
+    { id: 3, name: 'Weinna', boops: 5, isLeader: false, profilePhoto: 'https://media.discordapp.net/attachments/1316937625369841767/1396338294089842758/weinna-headshot.png?ex=687db8e0&is=687c6760&hm=e360988c00b55a8d73de0be981ac9c286560d35fba8b344ee7f52c86136294b8&=&format=webp&quality=lossless&width=84&height=84' },
+    { id: 4, name: 'James', boops: 8, isLeader: false, profilePhoto: 'https://media.discordapp.net/attachments/1316937625369841767/1396338293444051084/james-headshot.png?ex=687db8df&is=687c675f&hm=fff7088a303634f1f1a9c062c6bc35aedddddb1ab64d4a5b46f62942ad8631e0&=&format=webp&quality=lossless&width=84&height=84' },
   ];
 
   const boopLogs = [
-    { id: 1, user1: 'Aayush', user2: 'Weinna', date: 'July 19, 2025', time: '2:39 PM', location: 'York University' },
-    { id: 2, user1: 'Aayush', user2: 'James', date: 'July 19, 2025', time: '2:39 PM', location: 'York University' },
-    { id: 3, user1: 'Aayush', user2: 'Jesse', date: 'July 19, 2025', time: '2:39 PM', location: 'York University' },
-    { id: 4, user1: 'Weinna', user2: 'James', date: 'July 19, 2025', time: '2:39 PM', location: 'York University' },
+    { 
+      id: 4, 
+      user1Id: 3, 
+      user2Id: 4, 
+      date: 'July 19, 2025', 
+      time: '2:39 PM', 
+      location: 'York University' 
+    },
+    { 
+      id: 3, 
+      user1Id: 1, 
+      user2Id: 2, 
+      date: 'July 19, 2025', 
+      time: '2:39 PM', 
+      location: 'York University' 
+    },
+    { 
+      id: 2, 
+      user1Id: 1, 
+      user2Id: 4, 
+      date: 'July 19, 2025', 
+      time: '2:39 PM', 
+      location: 'York University' 
+    },
+    { 
+      id: 1, 
+      user1Id: 1, 
+      user2Id: 3, 
+      date: 'July 19, 2025', 
+      time: '2:39 PM', 
+      location: 'York University' 
+    },
   ];
+
+  // Helper function to get user data by ID
+  const getUserById = (userId: number) => {
+    return members.find(member => member.id === userId);
+  };
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={{
+          paddingBottom: Math.max(insets.bottom, 16) + 50, // Add extra padding for tab bar
+        }}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header Section */}
         <PageHeader title="my boop group" imageSource={require('@/assets/images/boop-group/boop-group-header.png')} icon={<Svg width={33} height={33} viewBox="0 0 30 30" fill="none">
           <Path 
@@ -110,8 +152,11 @@ export default function TabThreeScreen() {
 
         {/* Member List */}
         <View style={styles.memberList}>
-          {members.map((member) => (
-            <View key={member.id} style={styles.memberItem}>
+          {members.map((member, index) => (
+            <View key={member.id} style={[
+              styles.memberItem,
+              index === members.length - 1 && styles.lastMemberItem
+            ]}>
               <View style={styles.memberAvatar}>
                 <Image 
                   source={{ uri: member.profilePhoto }} 
@@ -156,42 +201,35 @@ export default function TabThreeScreen() {
 
         {/* Do Not Disturb Toggle */}
         <View style={styles.doNotDisturbContainer}>
-          <ThemedText style={styles.doNotDisturbText}>Do not disturb</ThemedText>
           <Switch
             value={isDoNotDisturb}
             onValueChange={setIsDoNotDisturb}
             trackColor={{ false: '#E0E0E0', true: '#A76CF0' }}
             thumbColor={isDoNotDisturb ? '#FFFFFF' : '#FFFFFF'}
           />
+          <ThemedText style={styles.doNotDisturbText}>Do not disturb</ThemedText>
         </View>
 
         {/* Boop Log Section */}
         <View style={styles.boopLogContainer}>
           <ThemedText style={styles.boopLogTitle}>boop log</ThemedText>
-          {boopLogs.map((log) => (
-            <View key={log.id} style={styles.boopLogItem}>
-              <View style={styles.boopLogAvatars}>
-                <View style={styles.avatarOverlap}>
-                  <View style={[styles.logAvatar, styles.logAvatarBack]}>
-                    <ThemedText style={styles.logAvatarText}>👨‍💻</ThemedText>
-                  </View>
-                  <View style={[styles.logAvatar, styles.logAvatarFront]}>
-                    <ThemedText style={styles.logAvatarText}>👩‍💼</ThemedText>
-                  </View>
-                </View>
-              </View>
-              <View style={styles.boopLogContent}>
-                <View style={styles.boopLogHeader}>
-                  <ThemedText style={styles.boopLogDate}>{log.date}</ThemedText>
-                  <ThemedText style={styles.boopLogTime}>{log.time}</ThemedText>
-                </View>
-                <ThemedText style={styles.boopLogDescription}>
-                  {log.user1} and {log.user2} booped at{' '}
-                  <ThemedText style={styles.boopLogLocation}>{log.location}</ThemedText>
-                </ThemedText>
-              </View>
-            </View>
-          ))}
+          {boopLogs.map((log) => {
+            const user1 = getUserById(log.user1Id);
+            const user2 = getUserById(log.user2Id);
+            
+            if (!user1 || !user2) return null;
+            
+            return (
+              <BoopLogItem
+                key={log.id}
+                user1={user1}
+                user2={user2}
+                date={log.date}
+                time={log.time}
+                location={log.location}
+              />
+            );
+          })}
         </View>
       </ScrollView>
     </View>
@@ -225,7 +263,7 @@ const styles = StyleSheet.create({
   },
   groupName: {
     fontSize: 21,
-    fontWeight: '500',
+    fontWeight: '700',
     color: '#A76CF0',
   },
   editButton: {
@@ -251,11 +289,10 @@ const styles = StyleSheet.create({
   memberList: {
     backgroundColor: '#FFFFFF',
     marginHorizontal: 20,
-    marginTop: 0,
+    marginTop: 6,
     borderRadius: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    gap: 10,
+    paddingVertical: 0,
+    gap: 0,
     borderWidth: 2,
     borderColor: 'rgba(187, 187, 187, 0.2)',
     borderStyle: 'solid',
@@ -263,10 +300,13 @@ const styles = StyleSheet.create({
   memberItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingBottom: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 15,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(187, 187, 187, 0.2)',
+  },
+  lastMemberItem: {
+    borderBottomWidth: 0,
   },
   memberAvatar: {
     width: 40,
@@ -313,86 +353,27 @@ const styles = StyleSheet.create({
   },
   doNotDisturbContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 25,
     paddingVertical: 16,
     backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    gap: 12,
   },
   doNotDisturbText: {
     fontSize: 16,
     color: '#333333',
   },
   boopLogContainer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 25,
+    paddingRight: 35,
     paddingVertical: 16,
+    marginTop: 16,
   },
   boopLogTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 21,
+    fontWeight: '700',
     color: '#A76CF0',
-    marginBottom: 16,
-  },
-  boopLogItem: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  boopLogAvatars: {
-    marginRight: 12,
-  },
-  avatarOverlap: {
-    position: 'relative',
-    width: 40,
-    height: 40,
-  },
-  logAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F0F0F0',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'absolute',
-  },
-  logAvatarBack: {
-    left: 0,
-    top: 0,
-    zIndex: 1,
-  },
-  logAvatarFront: {
-    right: 0,
-    bottom: 0,
-    zIndex: 2,
-  },
-  logAvatarText: {
-    fontSize: 14,
-  },
-  boopLogContent: {
-    flex: 1,
-  },
-  boopLogHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  boopLogDate: {
-    fontSize: 14,
-    color: '#666666',
-  },
-  boopLogTime: {
-    fontSize: 14,
-    color: '#666666',
-  },
-  boopLogDescription: {
-    fontSize: 14,
-    color: '#333333',
-    lineHeight: 20,
-  },
-  boopLogLocation: {
-    fontSize: 14,
-    color: '#2196F3',
-    textDecorationLine: 'underline',
+    marginBottom: 12,
   },
 });
