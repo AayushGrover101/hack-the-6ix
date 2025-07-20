@@ -115,7 +115,7 @@ app.get('/stats', async (req, res) => {
     const totalUsers = await User.countDocuments();
     const onlineUsers = await User.countDocuments({ 
       isOnline: true,
-      lastSeen: { $gte: new Date(Date.now() - 5 * 60 * 1000) }
+      lastSeen: { $gte: new Date(Date.now() - 30 * 1000) }
     });
     const totalGroups = await Group.countDocuments();
     const totalBoops = await Group.aggregate([
@@ -131,6 +131,31 @@ app.get('/stats', async (req, res) => {
       groups: totalGroups,
       boops: totalBoops[0]?.total || 0,
       timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Debug endpoint to check all users' status
+app.get('/debug/users', async (req, res) => {
+  try {
+    const users = await User.find().select('uid name isOnline lastSeen location');
+    
+    const now = new Date();
+    const usersWithStatus = users.map(user => ({
+      uid: user.uid,
+      name: user.name,
+      isOnline: user.isOnline,
+      lastSeen: user.lastSeen,
+      location: user.location ? 'set' : 'null',
+      secondsSinceLastSeen: Math.floor((now - user.lastSeen) / 1000),
+      shouldBeOffline: user.isOnline && (now - user.lastSeen) > 30 * 1000
+    }));
+    
+    res.json({ 
+      users: usersWithStatus,
+      timestamp: now.toISOString()
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -313,10 +338,45 @@ app.get('/users/online', async (req, res) => {
   try {
     const onlineUsers = await User.find({ 
       isOnline: true,
-      lastSeen: { $gte: new Date(Date.now() -  30 * 1000) } // Online in last 5 minutes
-    }).select('uid name lastSeen');
+      lastSeen: { $gte: new Date(Date.now() -  30 * 1000) } // Online in last 30 seconds
+    }).select('uid name lastSeen isOnline');
 
     res.json({ onlineUsers });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Force cleanup of online status - for debugging
+app.post('/users/force-offline', async (req, res) => {
+  try {
+    const { uid } = req.body;
+    
+    if (!uid) {
+      return res.status(400).json({ error: 'User UID is required' });
+    }
+    
+    const user = await User.findOne({ uid });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    user.isOnline = false;
+    user.location = null;
+    user.lastSeen = new Date();
+    await user.save();
+    
+    console.log(`🔧 Force set user ${user.name} (${uid}) to offline`);
+    
+    res.json({ 
+      message: 'User forced offline',
+      user: {
+        uid: user.uid,
+        name: user.name,
+        isOnline: user.isOnline,
+        location: user.location
+      }
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1032,7 +1092,7 @@ io.on('connection', (socket) => {
     const uid = socket.userUid;
     
     if (uid) {
-      console.log(`User ${uid} disconnected, clearing their location`);
+      console.log(`User ${uid} disconnected, clearing their location and setting offline`);
       
       try {
         // Find and update the user
@@ -1044,15 +1104,19 @@ io.on('connection', (socket) => {
           user.lastSeen = new Date();
           await user.save();
           
-          console.log(`Cleared location for user: ${user.name} (${uid})`);
+          console.log(`✅ Successfully cleared location and set offline for user: ${user.name} (${uid})`);
+          
+          // Double-check the update worked
+          const updatedUser = await User.findOne({ uid });
+          console.log(`Verification - User ${uid} isOnline: ${updatedUser.isOnline}, location: ${updatedUser.location ? 'set' : 'null'}`);
         } else {
-          console.log(`User not found in database: ${uid}`);
+          console.log(`❌ User not found in database: ${uid}`);
         }
       } catch (error) {
-        console.error('Error clearing user location on disconnect:', error);
+        console.error('❌ Error clearing user location on disconnect:', error);
       }
     } else {
-      console.log('No user UID found for disconnected socket');
+      console.log('❌ No user UID found for disconnected socket');
     }
   });
 });
