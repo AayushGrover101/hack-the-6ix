@@ -738,6 +738,23 @@ app.get('/groups/:groupId/boop-log', async (req, res) => {
 io.on('connection', (socket) => {
   console.log('A user connected');
 
+  // Join user to their personal room for targeted messages
+  socket.on('join_user_room', async (data) => {
+    try {
+      const uid = data.uid;
+      console.log('User joining personal room:', uid);
+      
+      // Join the socket to a room named after the user's UID
+      socket.join(uid);
+      console.log(`Socket joined room: ${uid}`);
+      
+      socket.emit('joined_user_room', { uid });
+    } catch (error) {
+      console.error('Error joining user room:', error);
+      socket.emit('join_user_room_error', { error: error.message });
+    }
+  });
+
 
 
   // Handle user refresh - get latest user data from database
