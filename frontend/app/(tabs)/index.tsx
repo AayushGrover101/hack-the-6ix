@@ -1,6 +1,13 @@
 import { router } from "expo-router";
 import { useState, useEffect, useRef } from "react";
-import { Platform, StyleSheet, AppState, Button, Vibration } from "react-native";
+import {
+  Platform,
+  StyleSheet,
+  AppState,
+  Button,
+  Vibration,
+} from "react-native";
+import { Image } from "expo-image";
 import Slider from "@react-native-community/slider";
 
 import { ThemedText } from "@/components/ThemedText";
@@ -8,6 +15,7 @@ import { ThemedView } from "@/components/ThemedView";
 import { CompassHeading } from "@/components/CompassHeading";
 import * as Location from "expo-location";
 import * as TaskManager from "expo-task-manager";
+import ParallaxScrollView from "@/components/ParallaxScrollView";
 
 const LOCATION_TASK_NAME = "background-location-task";
 let sharedLocationCallback:
@@ -39,7 +47,7 @@ export default function HomeScreen() {
   const [currTestLocation, setCurrTestLocation] =
     useState<Location.LocationObject | null>(null);
   const [detected, setDetected] = useState<boolean>(false); // TODO: make this a context or global state or smth
-  
+
   const [buzzDuration, setBuzzDuration] = useState(200);
   const [waitTime, setWaitTime] = useState(500);
   const intervalRef = useRef<number | null>(null);
@@ -71,7 +79,7 @@ export default function HomeScreen() {
 
       const startRepeatingVibration = () => {
         Vibration.vibrate(buzzDuration);
-        
+
         const interval = setInterval(() => {
           Vibration.vibrate(buzzDuration);
         }, waitTime);
@@ -237,13 +245,15 @@ export default function HomeScreen() {
     return () => {
       sharedLocationCallback = null;
       // Safety check to prevent E_TASK_NOT_FOUND error
-      TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME).then((isRegistered) => {
-        if (isRegistered) {
-          Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME).catch(
-            console.error
-          );
+      TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME).then(
+        (isRegistered) => {
+          if (isRegistered) {
+            Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME).catch(
+              console.error
+            );
+          }
         }
-      });
+      );
       if (cleanupInterval) {
         clearInterval(cleanupInterval);
       }
@@ -278,17 +288,18 @@ export default function HomeScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>
-        It&apos;s quiet here...
-      </ThemedText>
-      <ThemedText style={styles.subtitle}>No one is nearby.</ThemedText>
       {/* <CompassHeading /> */}
 
-      <Button onPress={() => setDetected(!detected)} title={detected ? "Stop Detection" : "Start Detection"} />
-      
-      {detected && (
+      <Button
+        onPress={() => setDetected(!detected)}
+        title={detected ? "Stop Detection" : "Start Detection"}
+      />
+
+      {detected ? (
         <ThemedView style={styles.detectionContainer}>
-          <ThemedText style={styles.detectionText}>🎯 Someone detected nearby!</ThemedText>
+          <ThemedText style={styles.detectionText}>
+            🎯 Someone detected nearby!
+          </ThemedText>
           <ThemedView style={styles.sliderContainer}>
             <ThemedText style={styles.sliderLabel}>
               Buzz Duration: {buzzDuration.toFixed(0)}ms
@@ -303,10 +314,11 @@ export default function HomeScreen() {
               maximumTrackTintColor="#d3d3d3"
             />
           </ThemedView>
-          
+
           <ThemedView style={styles.sliderContainer}>
             <ThemedText style={styles.sliderLabel}>
-              Wait Time: {waitTime.toFixed(0)}ms ({(waitTime/1000).toFixed(2)}s)
+              Wait Time: {waitTime.toFixed(0)}ms ({(waitTime / 1000).toFixed(2)}
+              s)
             </ThemedText>
             <Slider
               style={styles.slider}
@@ -319,6 +331,13 @@ export default function HomeScreen() {
             />
           </ThemedView>
         </ThemedView>
+      ) : (
+        <>
+          <ThemedText type="title" style={styles.title}>
+            It&apos;s quiet here...
+          </ThemedText>
+          <ThemedText style={styles.subtitle}>No one is nearby.</ThemedText>
+        </>
       )}
     </ThemedView>
   );
@@ -330,7 +349,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#f0f0f0",
-    paddingBottom: Platform.OS === 'ios' ? 92 : 96,
+    paddingBottom: Platform.OS === "ios" ? 92 : 96,
   },
   title: {
     fontFamily: "ItcKabelDemi",
@@ -348,28 +367,28 @@ const styles = StyleSheet.create({
   detectionContainer: {
     marginTop: 30,
     padding: 20,
-    backgroundColor: 'rgba(71, 133, 234, 0.1)',
+    backgroundColor: "rgba(71, 133, 234, 0.1)",
     borderRadius: 12,
-    width: '90%',
-    alignItems: 'center',
+    width: "90%",
+    alignItems: "center",
   },
   detectionText: {
     fontSize: 18,
     fontFamily: "GeneralSanMedium",
     color: "#4785EA",
     marginBottom: 15,
-    textAlign: 'center',
+    textAlign: "center",
   },
   sliderContainer: {
     marginVertical: 15,
-    width: '100%',
+    width: "100%",
   },
   sliderLabel: {
     fontSize: 14,
     fontFamily: "GeneralSanMedium",
     color: "#737373",
     marginBottom: 5,
-    textAlign: 'center',
+    textAlign: "center",
   },
   slider: {
     width: "100%",
