@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
   },
   profileImage: {
     borderRadius: 100,
-    borderWidth: 2,
+    borderWidth: 4,
     borderColor: "#FFFFFF",
   },
   arrowOverlay: {

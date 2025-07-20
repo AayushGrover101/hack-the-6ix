@@ -10,6 +10,7 @@ import {
 import { Image } from "expo-image";
 import Slider from "@react-native-community/slider";
 import { LinearGradient } from "expo-linear-gradient";
+import Svg, { Path } from "react-native-svg";
 
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
@@ -51,16 +52,16 @@ export default function TabOneScreen() {
   const [waitTime, setWaitTime] = useState(500);
   const intervalRef = useRef<number | null>(null);
 
-  // Gradient state
-  const [gradientIntensity, setGradientIntensity] = useState(50); // 0-100
+  // Gradient state - now controlled by progress
   const [topGradientBlue, setTopGradientBlue] = useState(true); // true = #4785EA, false = #F06C6C
 
   // Slider state
   const [sliderValue, setSliderValue] = useState(0); // 0-100, represents progress percentage
   const [arrowRotation, setArrowRotation] = useState(0); // 0-360 degrees
 
-  // Profile image URL - you can change this to any URL
-  const profileImageUrl = "https://media.licdn.com/dms/image/v2/D5603AQF6gPTl46j53w/profile-displayphoto-shrink_400_400/B56ZX4zDxuHQAk-/0/1743635890387?e=1755734400&v=beta&t=NyhNb_F72PO9N5KdJpaUjP7PNDpyQy8rlP1JLSTSK4c";
+  // Profile image URLs - you can change these to any URLs
+  const userProfileImageUrl = "https://media.licdn.com/dms/image/v2/D5603AQF6gPTl46j53w/profile-displayphoto-shrink_400_400/B56ZX4zDxuHQAk-/0/1743635890387?e=1755734400&v=beta&t=NyhNb_F72PO9N5KdJpaUjP7PNDpyQy8rlP1JLSTSK4c";
+  const nearbyUserImageUrl = "https://media.licdn.com/dms/image/v2/D4E03AQEfniTcrGSV0Q/profile-displayphoto-scale_400_400/B4EZgZlOr9GcAo-/0/1752775847358?e=1755734400&v=beta&t=RUaByqJGG6ElpBzefdcn8olso_Q3KgTrSanQ0XuhUXI";
 
   // Helper function to calculate bottom gradient color based on intensity
   const getBottomGradientColor = (intensity: number) => {
@@ -341,106 +342,161 @@ export default function TabOneScreen() {
           <LinearGradient
             colors={[
               getTopGradientColor(topGradientBlue),
-              getBottomGradientColor(gradientIntensity),
+              getBottomGradientColor(sliderValue),
             ]}
             style={styles.gradientWrapper}
           >
-            <View style={styles.profileCard}>
-              <Compass 
-                profileImageUrl={profileImageUrl}
-                rotation={arrowRotation}
-                size={140}
-              />
-              <View style={styles.profileInfo}>
-                <ThemedText style={styles.profileName}>Jesse</ThemedText>
-                <ThemedText style={styles.profileDistance}>50m</ThemedText>
+            {sliderValue >= 100 ? (
+              <View style={styles.boopedProfilesContainer}>
+                {/* Boop text above the profiles */}
+                <View style={styles.boopTextContainer}>
+                  <ThemedText style={styles.boopText}>boop!</ThemedText>
+                </View>
+                {/* Sparks effect above the touching profiles */}
+                <View style={styles.boopedSparksContainer}>
+                  <Svg width="30" height="30" viewBox="0 0 24 22" style={styles.boopedSparksEffect}>
+                    <Path d="M7.94882 4.73077C8.41896 3.8895 8.88911 3.04824 9.35925 2.20697C6.93082 1.7972 4.50239 1.38743 2.07396 0.977657C2.24202 1.92661 2.41008 2.87557 2.57814 3.82453C2.60172 3.95763 2.62529 4.09072 2.64886 4.22382C3.07315 6.61955 3.49743 9.01528 3.92172 11.411C3.94529 11.5441 3.96886 11.6772 3.99243 11.8103C4.05837 11.6923 4.12431 11.5743 4.19025 11.4563C5.37717 9.33247 6.56409 7.20861 7.751 5.08475C7.81694 4.96676 7.88288 4.84876 7.94882 4.73077Z" fill="white"/>
+                    <Path d="M19.7591 10.8706C21.0368 10.2211 22.3146 9.57165 23.5924 8.92219C21.0273 6.36979 18.4622 3.81739 15.8971 1.26499C15.254 2.54597 14.6109 3.82695 13.9677 5.10792C13.8699 5.30274 13.7721 5.49756 13.6743 5.69237C11.9138 9.19906 10.1533 12.7057 8.39278 16.2124C8.29498 16.4072 8.19717 16.6021 8.09937 16.7969C8.29369 16.6981 8.48802 16.5993 8.68235 16.5006C12.1803 14.7227 15.6782 12.9448 19.1761 11.1669C19.3704 11.0681 19.5647 10.9693 19.7591 10.8706Z" fill="white"/>
+                  </Svg>
+                </View>
+                <View style={styles.boopedProfileImage}>
+                  <Image
+                    source={userProfileImageUrl}
+                    style={styles.boopedAvatar}
+                  />
+                  <ThemedText style={styles.boopedProfileName}>Aayush</ThemedText>
+                </View>
+                <View style={styles.boopedProfileImage}>
+                  <Image
+                    source={nearbyUserImageUrl}
+                    style={styles.boopedAvatar}
+                  />
+                  <ThemedText style={styles.boopedProfileName}>Jesse</ThemedText>
+                </View>
               </View>
-            </View>
+            ) : (
+              <View style={styles.profileCard}>
+                <Compass 
+                  profileImageUrl={nearbyUserImageUrl}
+                  rotation={arrowRotation}
+                  size={140}
+                />
+                <View style={styles.profileInfo}>
+                  <ThemedText style={styles.profileName}>Jesse</ThemedText>
+                  <ThemedText style={styles.profileDistance}>50m</ThemedText>
+                </View>
+              </View>
+            )}
 
             {/* Message Text - Row 2 */}
-            <View style={styles.messageContainer}>
+            <View style={[
+              styles.messageContainer,
+              sliderValue >= 100 && { marginTop: -20 }
+            ]}>
               <ThemedText style={styles.messageTitle}>
-                someone&apos;s nearby!
+                {sliderValue >= 100 ? "yippee!!" : "someone's nearby!"}
               </ThemedText>
-              <ThemedText style={styles.messageSubtitle}>
-                Go boop them!!
+              <ThemedText style={[
+                styles.messageSubtitle
+              ]}>
+                {sliderValue >= 100 ? "Y'all booped!" : "Go boop them!!"}
               </ThemedText>
             </View>
 
             {/* Slider Row - Row 3 */}
             <View style={styles.boopSliderContainer}>
-              <View style={styles.sliderTrack}>
-                <View style={styles.leftArrows}>
-                  <ThemedText style={styles.arrowText}> → → → →</ThemedText>
-                </View>
-                <View style={styles.sliderProgress}>
-                  {/* Background track */}
-                  <View style={styles.backgroundTrack} />
-                  
-                  {/* Blue progress bar */}
-                  <View
-                    style={[
-                      styles.progressBar,
-                      { width: `${(sliderValue / 95) * 90}%` },
-                    ]}
+                          <View style={[
+                            styles.sliderTrack,
+                            sliderValue >= 100 && styles.sliderTrackBooped
+                          ]}>
+              <View style={styles.sliderProgress}>
+                {/* Background track */}
+                <View style={styles.backgroundTrack} />
+                
+                {/* Blue left section - grows from left edge */}
+                <View
+                  style={[
+                    styles.blueSection,
+                    { width: `${sliderValue * 0.45}%` },
+                  ]}
+                />
+
+                {/* White middle section - shrinks as avatars approach */}
+                <View
+                  style={[
+                    styles.whiteSection,
+                    { 
+                      left: `${sliderValue * 0.45}%`,
+                      width: `${100 - (sliderValue * 0.9)}%`
+                    },
+                  ]}
+                />
+
+                {/* Blue right section - grows from right edge */}
+                <View
+                  style={[
+                    styles.blueSection,
+                    { 
+                      left: `${100 - (sliderValue * 0.45)}%`,
+                      width: `${sliderValue * 0.45}%`
+                    },
+                  ]}
+                />
+
+                {/* Left avatar - positioned at left edge of progress bar */}
+                <View
+                  style={[
+                    styles.avatarContainer,
+                    styles.leftAvatarContainer,
+                    { left: `${sliderValue * 0.45}%` }, // Reduced from 0.5 to leave gap
+                  ]}
+                >
+                  <Image
+                    source={userProfileImageUrl}
+                    style={styles.sliderAvatar}
                   />
-
-                  {/* Moving left avatar */}
-                  <View
-                    style={[
-                      styles.avatarContainer,
-                      styles.leftAvatarContainer,
-                      { left: `${(sliderValue / 95) * 90}%` },
-                    ]}
-                  >
-                    <Image
-                      source={profileImageUrl}
-                      style={styles.sliderAvatar}
-                    />
-                  </View>
-
-                  {/* Fixed right avatar */}
-                  <View
-                    style={[
-                      styles.avatarContainer,
-                      styles.rightAvatarContainer,
-                      { left: "90%" },
-                    ]}
-                  >
-                    <Image
-                      source={profileImageUrl}
-                      style={styles.sliderAvatar}
-                    />
-                  </View>
+                  {/* Sparks effect when progress is 100% */}
+                  {sliderValue >= 100 && (
+                    <Svg width="25" height="25" viewBox="0 0 24 22" style={styles.sparksEffect}>
+                      <Path d="M7.94882 4.73077C8.41896 3.8895 8.88911 3.04824 9.35925 2.20697C6.93082 1.7972 4.50239 1.38743 2.07396 0.977657C2.24202 1.92661 2.41008 2.87557 2.57814 3.82453C2.60172 3.95763 2.62529 4.09072 2.64886 4.22382C3.07315 6.61955 3.49743 9.01528 3.92172 11.411C3.94529 11.5441 3.96886 11.6772 3.99243 11.8103C4.05837 11.6923 4.12431 11.5743 4.19025 11.4563C5.37717 9.33247 6.56409 7.20861 7.751 5.08475C7.81694 4.96676 7.88288 4.84876 7.94882 4.73077Z" fill="white"/>
+                      <Path d="M19.7591 10.8706C21.0368 10.2211 22.3146 9.57165 23.5924 8.92219C21.0273 6.36979 18.4622 3.81739 15.8971 1.26499C15.254 2.54597 14.6109 3.82695 13.9677 5.10792C13.8699 5.30274 13.7721 5.49756 13.6743 5.69237C11.9138 9.19906 10.1533 12.7057 8.39278 16.2124C8.29498 16.4072 8.19717 16.6021 8.09937 16.7969C8.29369 16.6981 8.48802 16.5993 8.68235 16.5006C12.1803 14.7227 15.6782 12.9448 19.1761 11.1669C19.3704 11.0681 19.5647 10.9693 19.7591 10.8706Z" fill="white"/>
+                    </Svg>
+                  )}
                 </View>
-                <View style={styles.rightArrows}>
-                  <ThemedText style={styles.arrowText}>← →</ThemedText>
+
+                {/* Right avatar - positioned at right edge of progress bar */}
+                <View
+                  style={[
+                    styles.avatarContainer,
+                    styles.rightAvatarContainer,
+                    { left: `${100 - (sliderValue * 0.45)}%` }, // Reduced from 0.5 to leave gap
+                  ]}
+                >
+                  <Image
+                    source={nearbyUserImageUrl}
+                    style={styles.sliderAvatar}
+                  />
+                  {/* Sparks effect when progress is 100% */}
+                  {sliderValue >= 100 && (
+                    <Svg width="40" height="40" viewBox="0 0 24 22" style={styles.sparksEffect}></Svg>
+                  )}
                 </View>
               </View>
+            </View>
 
-              {/* Slider control for testing */}
-              <View style={styles.sliderControlContainer}>
-                <ThemedText style={styles.sliderLabel}>
-                  Progress: {sliderValue.toFixed(0)}%
-                </ThemedText>
+              {/* Slider controls - always show for testing */}
+              <View style={styles.compactSliderContainer}>
                 <Slider
-                  style={styles.slider}
+                  style={styles.compactSlider}
                   minimumValue={0}
-                  maximumValue={95}
+                  maximumValue={100}
                   value={sliderValue}
                   onValueChange={setSliderValue}
                   minimumTrackTintColor="#4785EA"
                   maximumTrackTintColor="#d3d3d3"
                 />
-              </View>
-
-              {/* Arrow Rotation Slider */}
-              <View style={styles.sliderControlContainer}>
-                <ThemedText style={styles.sliderLabel}>
-                  Arrow Rotation: {arrowRotation.toFixed(0)}°
-                </ThemedText>
                 <Slider
-                  style={styles.slider}
+                  style={styles.compactSlider}
                   minimumValue={0}
                   maximumValue={360}
                   value={arrowRotation}
@@ -543,7 +599,7 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     position: "relative",
-    height: 105,
+    height: 125,
     paddingVertical: 12,
     width: "100%",
     justifyContent: "flex-end",
@@ -553,7 +609,7 @@ const styles = StyleSheet.create({
   headerBackgroundImage: {
     position: "absolute",
     width: "100%",
-    height: 105,
+    height: 125,
     objectFit: "contain",
   },
   headerContent: {
@@ -571,7 +627,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontFamily: "ItcKabelDemi",
     fontSize: 42,
-    lineHeight: 38,
+    lineHeight: 45,
     color: "#4785EA",
     textAlign: "center",
   },
@@ -604,7 +660,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "flex-start",
     padding: 32,
-    paddingTop: 60,
+    paddingTop: 70,
   },
   gradientControls: {
     marginVertical: 15,
@@ -618,7 +674,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     padding: 16,
-    marginBottom: 40,
+    marginBottom: 60,
+    height: 200, // Fixed height to match booped container
   },
   profileInfo: {
     flex: 1,
@@ -642,8 +699,9 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   messageTitle: {
-    fontSize: 42,
-    lineHeight: 42,
+    fontSize: 40,
+    lineHeight: 40,
+    marginBottom: 40,
     fontFamily: "ItcKabelDemi",
     color: "#FFFFFF",
     width: "100%",
@@ -661,32 +719,24 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   sliderTrack: {
-    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.9)",
     borderRadius: 25,
-    width: "80%",
-    height: 22,
+    width: "70%",
+    height: 8,
   },
-  leftArrows: {
-    flex: 1,
-    alignItems: "center",
-  },
-  rightArrows: {
-    flex: 1,
-    alignItems: "center",
-  },
-  arrowText: {
-    fontSize: 18,
-    color: "#4785EA",
-    fontFamily: "GeneralSanMedium",
+  sliderTrackBooped: {
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 15,
+    elevation: 8,
   },
   sliderProgress: {
-    flex: 3,
+    width: "100%",
     height: "100%",
     borderRadius: 17,
-    marginHorizontal: 8,
     position: "relative",
     overflow: "visible", // Changed to visible so avatars can extend beyond bounds
   },
@@ -694,7 +744,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     top: 0,
-    width: "90%", // Background track covers 90% like the progress area
+    width: "100%", // Background track covers full width
     height: "100%",
     backgroundColor: "rgba(200,200,200,0.4)", // Light gray background
     borderRadius: 17,
@@ -710,17 +760,46 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     zIndex: 1,
   },
+  blueSection: {
+    position: "absolute",
+    top: 0,
+    height: "100%",
+    backgroundColor: "#4785EA",
+    borderRadius: 17,
+    zIndex: 1,
+  },
+
+  whiteSection: {
+    position: "absolute",
+    top: 0,
+    height: "100%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 17,
+    zIndex: 1,
+  },
   avatarContainer: {
     position: "absolute",
-    top: -15,
+    top: -20,
     width: 50,
     height: 50,
     zIndex: 10, // Increased z-index to bring avatars to front
   },
   leftAvatarContainer: {
-    transform: [{ translateX: -32 }], // Center the avatar on its position
+    transform: [{ translateX: -25 }], // Center the avatar on its position
+    zIndex: 12, // Higher z-index than right avatar
   },
-  rightAvatarContainer: {},
+  rightAvatarContainer: {
+    transform: [{ translateX: -25 }], // Center the avatar on its position (50px width - 32px = 18px)
+    zIndex: 11, // Lower z-index than left avatar
+  },
+  sparksEffect: {
+    position: "absolute",
+    top: -23,
+    left: 33,
+    width: 40,
+    height: 40,
+    zIndex: 13, // Higher than avatars
+  },
   userAvatars: {
     flexDirection: "row",
     alignItems: "center",
@@ -738,12 +817,29 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
   },
+  toggleContainer: {
+    marginTop: 20,
+    width: "80%",
+    alignItems: "center",
+  },
   sliderControlContainer: {
     marginTop: 20,
     width: "80%",
     backgroundColor: "rgba(255,255,255,0.8)",
     borderRadius: 8,
     padding: 12,
+  },
+  compactSliderContainer: {
+    marginTop: 45,
+    width: "80%",
+    backgroundColor: "rgba(255,255,255,0.8)",
+    borderRadius: 8,
+    padding: 8,
+  },
+  compactSlider: {
+    width: "100%",
+    height: 20,
+    marginVertical: 2,
   },
   detectionText: {
     fontSize: 18,
@@ -796,4 +892,64 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     objectFit: "contain",
   },
+  boopedProfilesContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+    marginBottom: 60,
+    marginTop: 20,
+    gap: 0, // Remove gap so images touch
+    height: 200, // Fixed height to match profileCard
+    position: "relative", // Add position relative for sparks positioning
+  },
+  boopedSparksContainer: {
+    position: "absolute",
+    top: 0,
+    left: "50%",
+    transform: [{ translateX: -8 }], // Center the sparks
+    zIndex: 15, // Higher than everything else
+  },
+  boopedSparksEffect: {
+    width: 60,
+    height: 60,
+  },
+  boopTextContainer: {
+    position: "absolute",
+    top: -50,
+    left: "50%",
+    transform: [{ translateX: -50 }],
+    alignItems: "center",
+    zIndex: 16, // Higher than sparks
+  },
+  boopText: {
+    fontSize: 42,
+    lineHeight: 42,
+    fontFamily: "ItcKabelDemi",
+    color: "#FFFFFF",
+    textAlign: "center",
+  },
+  boopedProfileImage: {
+    alignItems: "center",
+  },
+  boopedAvatar: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    borderWidth: 4,
+    borderColor: "#FFFFFF",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  boopedProfileName: {
+    fontSize: 18,
+    fontFamily: "GeneralSanMedium",
+    color: "#fff",
+    marginTop: 12,
+    textAlign: "center",
+  },
 });
+

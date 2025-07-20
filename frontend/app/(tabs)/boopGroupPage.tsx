@@ -8,8 +8,136 @@ import { ThemedText } from '@/components/ThemedText';
 import { BoopLogItem } from '@/components/BoopLogItem';
 import { InviteModal } from '@/components/InviteModal';
 import { LeaveGroupModal } from '@/components/LeaveGroupModal';
+import { CreateGroupModal } from '@/components/CreateGroupModal';
+import { JoinGroupModal } from '@/components/JoinGroupModal';
 
-export default function TabThreeScreen() {
+interface TabThreeScreenProps {
+  hasGroup?: boolean;
+}
+
+// Component for when user doesn't have a group
+const NoGroupView = () => {
+  const insets = useSafeAreaInsets();
+  const [isCreateModalVisible, setIsCreateModalVisible] = React.useState(false);
+  const [isJoinModalVisible, setIsJoinModalVisible] = React.useState(false);
+
+  const handleCreateGroup = () => {
+    setIsCreateModalVisible(true);
+  };
+
+  const handleJoinGroup = () => {
+    setIsJoinModalVisible(true);
+  };
+
+  const handleCloseCreateModal = () => {
+    setIsCreateModalVisible(false);
+  };
+
+  const handleCloseJoinModal = () => {
+    setIsJoinModalVisible(false);
+  };
+
+  const handleCreateGroupSubmit = (groupName: string) => {
+    // TODO: Implement create group functionality
+    console.log('Creating new group:', groupName);
+  };
+
+  const handleJoinGroupSubmit = (inviteCode: string) => {
+    // TODO: Implement join group functionality
+    console.log('Joining group with code:', inviteCode);
+  };
+
+  return (
+    <View style={styles.container}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={{
+          paddingBottom: Math.max(insets.bottom, 16) + 50,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header Section */}
+        <PageHeader title="my boop group" color="#A76CF0" imageSource={require('@/assets/images/boop-group/boop-group-header.png')} icon={<Svg width={33} height={33} viewBox="0 0 30 30" fill="none">
+          <Path 
+            d="M17.0885 21V19C17.0885 17.9391 16.667 16.9217 15.9169 16.1716C15.1667 15.4214 14.1493 15 13.0885 15H5.08846C4.02759 15 3.01017 15.4214 2.26003 16.1716C1.50988 16.9217 1.08846 17.9391 1.08846 19V21M23.0885 21V19C23.0878 18.1137 22.7928 17.2528 22.2498 16.5523C21.7068 15.8519 20.9466 15.3516 20.0885 15.13M16.0885 3.13C16.9489 3.3503 17.7115 3.8507 18.2561 4.55231C18.8007 5.25392 19.0963 6.11683 19.0963 7.005C19.0963 7.89317 18.8007 8.75608 18.2561 9.45769C17.7115 10.1593 16.9489 10.6597 16.0885 10.88M13.0885 7C13.0885 9.20914 11.2976 11 9.08846 11C6.87932 11 5.08846 9.20914 5.08846 7C5.08846 4.79086 6.87932 3 9.08846 3C11.2976 3 13.0885 4.79086 13.0885 7Z" 
+            stroke="#A76CF0" 
+            strokeWidth="3.5" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+          />
+        </Svg>} />
+
+        {/* No Group Content */}
+        <View style={styles.noGroupContainer}>
+          <View style={styles.noGroupCard}>
+            <ThemedText style={styles.noGroupMessage}>You don&apos;t have a boop group yet!</ThemedText>
+            
+            <View style={styles.noGroupButtons}>
+              <TouchableOpacity 
+                style={[styles.noGroupButton, styles.createButton]} 
+                activeOpacity={0.6}
+                onPress={handleCreateGroup}
+              >
+                <View style={styles.buttonContent}>
+                  <View style={[styles.buttonIcon, styles.createButtonIcon]}>
+                    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                      <Path 
+                        d="M12 5V19M5 12H19" 
+                        stroke="#75CB47" 
+                        strokeWidth="2" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                      />
+                    </Svg>
+                  </View>
+                  <ThemedText style={[styles.buttonText, styles.createButtonText]}>Create new boop group</ThemedText>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.noGroupButton, styles.joinButton]} 
+                activeOpacity={0.6}
+                onPress={handleJoinGroup}
+              >
+                <View style={styles.buttonContent}>
+                  <View style={[styles.buttonIcon, styles.joinButtonIcon]}>
+                    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                      <Path 
+                        d="M12 5V19M5 12H19" 
+                        stroke="#4785EA" 
+                        strokeWidth="2" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                      />
+                    </Svg>
+                  </View>
+                  <ThemedText style={[styles.buttonText, styles.joinButtonText]}>Join existing boop group</ThemedText>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Create Group Modal */}
+      <CreateGroupModal
+        visible={isCreateModalVisible}
+        onClose={handleCloseCreateModal}
+        onCreateGroup={handleCreateGroupSubmit}
+      />
+
+      {/* Join Group Modal */}
+      <JoinGroupModal
+        visible={isJoinModalVisible}
+        onClose={handleCloseJoinModal}
+        onJoinGroup={handleJoinGroupSubmit}
+      />
+    </View>
+  );
+};
+
+// Component for when user has a group (existing content)
+const HasGroupView = () => {
   const [isDoNotDisturb, setIsDoNotDisturb] = React.useState(false);
   const [isInviteModalVisible, setIsInviteModalVisible] = React.useState(false);
   const [isLeaveModalVisible, setIsLeaveModalVisible] = React.useState(false);
@@ -283,6 +411,10 @@ export default function TabThreeScreen() {
       />
     </View>
   );
+};
+
+export default function TabThreeScreen({ hasGroup = true }: TabThreeScreenProps) {
+  return hasGroup ? <HasGroupView /> : <NoGroupView />;
 }
 
 const styles = StyleSheet.create({
@@ -294,6 +426,78 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
+  // No Group Styles
+  noGroupContainer: {
+    flex: 1,
+    paddingHorizontal: 25,
+    paddingTop: 30,
+  },
+  noGroupCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 30,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(187, 187, 187, 0.2)',
+    borderStyle: 'solid',
+  },
+  noGroupMessage: {
+    fontSize: 25,
+    lineHeight: 30,
+    fontWeight: '500',
+    color: '#A76CF0',
+    textAlign: 'center',
+    marginBottom: 30,
+  },
+  noGroupButtons: {
+    gap: 15,
+  },
+  noGroupButton: {
+    borderRadius: 25,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    justifyContent: 'flex-start',
+  },
+  createButton: {
+    backgroundColor: '#D2F7C5',
+  },
+  createButtonIcon: {
+    backgroundColor: 'rgba(117, 203, 71, 0.2)',
+  },
+  createButtonText: {
+    color: '#75CB47',
+  },
+  joinButton: {
+    backgroundColor: '#D6E1FF',
+  },
+  joinButtonIcon: {
+    backgroundColor: 'rgba(71, 133, 234, 0.2)',
+  },
+  joinButtonText: {
+    color: '#4785EA',
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 12,
+    width: '100%',
+  },
+  buttonIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(117, 203, 71, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#75CB47',
+  },
+
+  // Has Group Styles
   groupOverview: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 25,
