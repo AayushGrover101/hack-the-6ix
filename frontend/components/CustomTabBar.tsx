@@ -78,12 +78,25 @@ export default function CustomTabBar({ profilePicture }: CustomTabBarProps) {
   };
 
   const isActiveTab = (route: string) => {
-    if (route === "/") {
-      return (
-        pathname === "/" || pathname === "/(tabs)" || pathname === "/(tabs)/"
-      );
+    // Normalize both pathname and route for comparison
+    const normalizedPathname = pathname.replace("/(tabs)", "").replace(/\/$/, "") || "/";
+    const normalizedRoute = route.replace("/(tabs)", "").replace(/\/$/, "") || "/";
+    
+    // Direct match for exact routes
+    if (normalizedPathname === normalizedRoute) {
+      return true;
     }
-    return pathname.includes(route.replace("/", ""));
+    
+    // Handle root/index routes
+    if (normalizedRoute === "/" && (normalizedPathname === "/" || normalizedPathname === "/index")) {
+      return true;
+    }
+    
+    // Extract the page name from route (e.g., "/boopPage" from "/(tabs)/boopPage")
+    const routePageName = normalizedRoute.replace("/", "");
+    
+    // Check if pathname ends with the page name
+    return routePageName && normalizedPathname.endsWith("/" + routePageName);
   };
 
   const TabBarContent = () => (
