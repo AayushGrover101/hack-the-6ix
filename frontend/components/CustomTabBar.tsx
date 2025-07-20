@@ -23,15 +23,15 @@ interface CustomTabBarProps {
 const tabs: TabItem[] = [
   {
     name: "boopGroupPage",
-    route: "/boopGroupPage",
+    route: "/(tabs)/boopGroupPage",
     label: "Group",
     color: "#A76CF0",
     backgroundColor: "#F0E6FF",
     imagePath: require("@/assets/images/nav/boopGroup.svg"),
   },
   {
-    name: "index",
-    route: "/",
+    name: "boopPage",
+    route: "/(tabs)/boopPage", // This should be the main/default tab when tab bar is visible
     label: "boop!",
     color: "#4785EA",
     backgroundColor: "#D6E1FF",
@@ -39,25 +39,34 @@ const tabs: TabItem[] = [
   },
   {
     name: "profilePage",
-    route: "/profilePage",
+    route: "/(tabs)/profilePage",
     label: "Profile",
     color: "#E88D4C",
     backgroundColor: "#FFE8BE",
     imagePath: require("@/assets/images/nav/profile.svg"), 
   },
-  // {
-  //   name: 'testTab',
-  //   route: '/testTab',
-  //   icon: 'magnifyingglass',
-  //   label: 'test',
-  //   imagePath: require("@/assets/images/nav/boop.svg") // You can change this to a search icon
-  // }
 ];
 
 export default function CustomTabBar({ profilePicture }: CustomTabBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
+
+  // Don't render the tab bar for the index/home route
+  const shouldHideTabBar = () => {
+    return (
+      pathname === "/" || 
+      pathname === "/(tabs)" || 
+      pathname === "/(tabs)/" ||
+      pathname === "/(tabs)/index" ||
+      pathname.endsWith("/index")
+    );
+  };
+
+  // If we should hide the tab bar, return null
+  if (shouldHideTabBar()) {
+    return null;
+  }
 
   const handleTabPress = (route: string) => {
     console.log("Tab pressed:", route);

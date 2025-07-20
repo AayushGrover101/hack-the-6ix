@@ -14,9 +14,9 @@ export default function TabLayout() {
         tabBar={() => <CustomTabBar profilePicture={require("@/assets/images/react-logo.png")} />}
       >
         <Tabs.Screen 
-          name="index" 
+          name="boopPage" 
           options={{ 
-            title: 'Home'
+            title: 'boop!'
           }}
         />
         <Tabs.Screen 
@@ -29,6 +29,12 @@ export default function TabLayout() {
           name="profilePage"
           options={{ 
             title: 'Profile'
+          }}
+        />
+        <Tabs.Screen 
+          name="index" 
+          options={{ 
+            title: 'bingbong'
           }}
         />
       </Tabs>
