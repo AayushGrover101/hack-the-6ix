@@ -857,7 +857,16 @@ io.on('connection', (socket) => {
         uid: { $ne: uid } // Exclude self
       });
 
-      console.log('Nearby users:', nearbyUsers);
+      console.log('Nearby users from DB:', nearbyUsers);
+
+      // Filter to only include users who are actually connected to Socket.IO
+      const connectedNearbyUsers = nearbyUsers.filter(nearbyUser => {
+        const isConnected = io.sockets.adapter.rooms.has(nearbyUser.uid);
+        console.log(`User ${nearbyUser.name} (${nearbyUser.uid}) connected: ${isConnected}`);
+        return isConnected;
+      });
+
+      console.log('Connected nearby users:', connectedNearbyUsers);
       // Send mutual proximity notifications
       nearbyUsers.forEach(nearbyUser => {
         const distance = calculateDistance(
