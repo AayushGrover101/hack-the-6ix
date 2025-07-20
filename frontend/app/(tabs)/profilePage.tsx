@@ -28,7 +28,7 @@ export default function TabTwoScreen({
   name = "Aayush", 
   email = "aayush@hackthenorth.com", 
   group = "75% HTN",
-  photo 
+  photo = "https://media.licdn.com/dms/image/v2/D5603AQF6gPTl46j53w/profile-displayphoto-shrink_400_400/B56ZX4zDxuHQAk-/0/1743635890387?e=1755734400&v=beta&t=NyhNb_F72PO9N5KdJpaUjP7PNDpyQy8rlP1JLSTSK4c"
 }: ProfilePageProps) {
   const [editableName, setEditableName] = useState(name);
   const [editableEmail, setEditableEmail] = useState(email);
@@ -59,7 +59,7 @@ export default function TabTwoScreen({
       >
         <PageHeader
           title="my profile"
-          imageSource={require("@/assets/images/profile/background.png")}
+          imageSource={require("@/assets/images/profile/profile-group-header.png")}
           icon={
             <Svg width={33} height={33} viewBox="0 0 30 30" fill="none">
               <Path
@@ -86,10 +86,20 @@ export default function TabTwoScreen({
                 />
               </Svg>
             ) : (
-              <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-                <Path
-                  d="M3 17.25V21H6.75L17.81 9.94L14.06 6.19L3 17.25ZM20.71 7.04C21.1 6.65 21.1 6.02 20.71 5.63L18.37 3.29C17.98 2.9 17.35 2.9 16.96 3.29L15.13 5.12L18.88 8.87L20.71 7.04Z"
-                  fill="#FFFFFF"
+              <Svg width={15} height={15} viewBox="0 0 22 25" fill="none">
+                <Path 
+                  d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" 
+                  stroke="#ffffff" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                />
+                <Path 
+                  d="M18.5 2.50023C18.8978 2.10297 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.10297 21.5 2.50023C21.8978 2.89749 22.1218 3.43705 22.1218 3.99973C22.1218 4.56241 21.8978 5.10197 21.5 5.49923L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z" 
+                  stroke="#ffffff" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
                 />
               </Svg>
             )}
@@ -111,15 +121,23 @@ export default function TabTwoScreen({
 
           <ThemedView style={styles.profileContent}>
             <ThemedView style={styles.profilePhoto}>
-              <Svg width={40} height={40} viewBox="0 0 24 24" fill="none">
-                <Path
-                  d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21M16 7C16 9.20914 14.2091 11 12 11C9.79086 11 8 9.20914 8 7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7Z"
-                  stroke="#E88D4C"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+              {photo ? (
+                <Image
+                  source={{ uri: photo }}
+                  style={styles.profileImage}
+                  contentFit="cover"
                 />
-              </Svg>
+              ) : (
+                <Svg width={40} height={40} viewBox="0 0 24 24" fill="none">
+                  <Path
+                    d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21M16 7C16 9.20914 14.2091 11 12 11C9.79086 11 8 9.20914 8 7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7Z"
+                    stroke="#E88D4C"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </Svg>
+              )}
             </ThemedView>
 
             <ThemedView style={styles.profileInfo}>
@@ -151,19 +169,23 @@ export default function TabTwoScreen({
               <ThemedText style={styles.sectionLabel}>
                 BOOP GROUP NAME
               </ThemedText>
-              {isEditing ? (
-                <TextInput
-                  style={styles.editInput}
-                  value={editableGroup}
-                  onChangeText={setEditableGroup}
-                  placeholder="Enter group name"
-                />
-              ) : (
-                <ThemedText style={styles.sectionItem}>{editableGroup}</ThemedText>
-              )}
+              <ThemedText style={styles.sectionItem}>{editableGroup}</ThemedText>
             </ThemedView>
           </ThemedView>
         </ThemedView>
+
+        <TouchableOpacity style={styles.logoutButton}>
+          <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" style={styles.logoutIcon}>
+            <Path
+              d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9M16 17L21 12M21 12L16 7M21 12H9"
+              stroke="#F06C6C"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
+          <ThemedText style={styles.logoutText}>Log out</ThemedText>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -179,24 +201,24 @@ const styles = StyleSheet.create({
   },
   editButton: {
     position: "absolute",
-    top: 12,
-    right: 12,
+    top: 20,
+    right: 20,
     backgroundColor: "#E88D4C",
-    borderRadius: 16,
-    width: 32,
-    height: 32,
+    borderRadius: 20,
+    width: 34,
+    height: 34,
     alignItems: "center",
     justifyContent: "center",
     zIndex: 10,
   },
   cancelButton: {
     position: "absolute",
-    top: 12,
-    right: 52,
-    backgroundColor: "#FF6B6B",
-    borderRadius: 16,
-    width: 32,
-    height: 32,
+    top: 20,
+    right: 60,
+    backgroundColor: "#F06C6C",
+    borderRadius: 20,
+    width: 34,
+    height: 34,
     alignItems: "center",
     justifyContent: "center",
     zIndex: 10,
@@ -216,14 +238,9 @@ const styles = StyleSheet.create({
     margin: 24,
     backgroundColor: "#fff",
     borderRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 2,
+    borderColor: 'rgba(187, 187, 187, 0.2)',
+    borderStyle: 'solid',
   },
   profileContent: {
     backgroundColor: "#fff",
@@ -233,10 +250,15 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
     backgroundColor: "#fff",
-    borderWidth: 3,
+    borderWidth: 4,
     borderColor: "#E88D4C",
     alignItems: "center",
     justifyContent: "center",
+  },
+  profileImage: {
+    width: 94,
+    height: 94,
+    borderRadius: 47,
   },
   profileInfo: {
     width: "100%",
@@ -267,5 +289,25 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     backgroundColor: "#FAFAFA",
     marginBottom: 8,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFD6D6',
+    borderRadius: 50,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    marginTop: 10,
+    marginBottom: 16,
+    alignSelf: 'center',
+  },
+  logoutIcon: {
+    marginRight: 8,
+  },
+  logoutText: {
+    color: '#F06C6C',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

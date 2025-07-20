@@ -6,9 +6,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PageHeader } from '@/components/PageHeader';
 import { ThemedText } from '@/components/ThemedText';
 import { BoopLogItem } from '@/components/BoopLogItem';
+import { InviteModal } from '@/components/InviteModal';
 
 export default function TabThreeScreen() {
   const [isDoNotDisturb, setIsDoNotDisturb] = React.useState(false);
+  const [isInviteModalVisible, setIsInviteModalVisible] = React.useState(false);
   const insets = useSafeAreaInsets();
 
   const members = [
@@ -36,7 +38,7 @@ export default function TabThreeScreen() {
       location: 'York University' 
     },
     { 
-      id: 2, 
+      id: 2,  
       user1Id: 1, 
       user2Id: 4, 
       date: 'July 19, 2025', 
@@ -56,6 +58,14 @@ export default function TabThreeScreen() {
   // Helper function to get user data by ID
   const getUserById = (userId: number) => {
     return members.find(member => member.id === userId);
+  };
+
+  const handleAddButtonPress = () => {
+    setIsInviteModalVisible(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsInviteModalVisible(false);
   };
 
   return (
@@ -103,7 +113,11 @@ export default function TabThreeScreen() {
               </TouchableOpacity>
             </View>
             <View style={styles.actionButtons}>
-              <TouchableOpacity style={[styles.actionButton, styles.addButton]} activeOpacity={0.6}>
+              <TouchableOpacity 
+                style={[styles.actionButton, styles.addButton]} 
+                activeOpacity={0.6}
+                onPress={handleAddButtonPress}
+              >
                 <Svg width={20} height={20} viewBox="0 0 19 20" fill="none">
                   <Path 
                     d="M13.3333 17.5V15.8333C13.3333 14.9493 12.9821 14.1014 12.357 13.4763C11.7319 12.8512 10.884 12.5 9.99998 12.5H4.16665C3.28259 12.5 2.43474 12.8512 1.80962 13.4763C1.1845 14.1014 0.833313 14.9493 0.833313 15.8333V17.5M16.6666 6.66667V11.6667M19.1666 9.16667H14.1666M10.4166 5.83333C10.4166 7.67428 8.92426 9.16667 7.08331 9.16667C5.24236 9.16667 3.74998 7.67428 3.74998 5.83333C3.74998 3.99238 5.24236 2.5 7.08331 2.5C8.92426 2.5 10.4166 3.99238 10.4166 5.83333Z" 
@@ -232,6 +246,13 @@ export default function TabThreeScreen() {
           })}
         </View>
       </ScrollView>
+
+      {/* Invite Modal */}
+      <InviteModal
+        visible={isInviteModalVisible}
+        onClose={handleCloseModal}
+        inviteCode="6YFU78R"
+      />
     </View>
   );
 }
