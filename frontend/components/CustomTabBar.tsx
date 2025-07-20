@@ -54,13 +54,33 @@ export default function CustomTabBar({ profilePicture }: CustomTabBarProps) {
 
   // Don't render the tab bar for the index/home route
   const shouldHideTabBar = () => {
-    return (
-      pathname === "/" || 
-      pathname === "/(tabs)" || 
-      pathname === "/(tabs)/" ||
-      pathname === "/(tabs)/index" ||
-      pathname.endsWith("/index")
-    );
+    console.log("Current pathname:", pathname); // Debug log
+    
+    // More comprehensive check for index routes
+    const indexRoutes = [
+      "/",
+      "/(tabs)",
+      "/(tabs)/",
+      "/(tabs)/index",
+      "/index"
+    ];
+    
+    // Check exact matches first
+    if (indexRoutes.includes(pathname)) {
+      return true;
+    }
+    
+    // Check if pathname ends with index (for various formats)
+    if (pathname.endsWith("/index") || pathname.endsWith("index")) {
+      return true;
+    }
+    
+    // Android-specific: check if we're at the root tab
+    if (pathname === "/(tabs)" || pathname === "/" || !pathname || pathname === "undefined") {
+      return true;
+    }
+    
+    return false;
   };
 
   // If we should hide the tab bar, return null

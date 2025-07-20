@@ -11,8 +11,15 @@ export default function TabLayout() {
           headerShown: false,
           tabBarStyle: { display: 'none' }, // Hide default tab bar since we have custom one
         }}
-        tabBar={() => <CustomTabBar profilePicture={require("@/assets/images/react-logo.png")} />}
+        tabBar={(props) => <CustomTabBar {...props} profilePicture={require("@/assets/images/react-logo.png")} />}
       >
+        <Tabs.Screen 
+          name="index" 
+          options={{ 
+            title: 'Home',
+            href: null, // This removes it from tab navigation but keeps it accessible
+          }}
+        />
         <Tabs.Screen 
           name="boopPage" 
           options={{ 
@@ -29,12 +36,6 @@ export default function TabLayout() {
           name="profilePage"
           options={{ 
             title: 'Profile'
-          }}
-        />
-        <Tabs.Screen 
-          name="index" 
-          options={{ 
-            title: 'bingbong'
           }}
         />
       </Tabs>
