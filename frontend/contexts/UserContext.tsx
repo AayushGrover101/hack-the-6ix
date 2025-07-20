@@ -39,6 +39,8 @@ interface UserContextType {
   setUser: (user: User | null) => void;
   refreshUser: () => Promise<void>;
   switchUser: (uid: string) => Promise<void>;
+  logout: () => void;
+  login: (uid: string) => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -174,6 +176,18 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     await fetchUser(uid);
   };
 
+  const logout = () => {
+    console.log('🚪 Logging out user');
+    setUser(null);
+    setLoading(false);
+    setError(null);
+  };
+
+  const login = async (uid: string) => {
+    console.log(`🔑 Logging in user: ${uid}`);
+    await fetchUser(uid);
+  };
+
   // Handle app state changes to reset user context on app exit
   useEffect(() => {
     const handleAppStateChange = (nextAppState: string) => {
@@ -197,8 +211,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    // For now, always load Alice (user1) as the default user
-    fetchUser('user1');
+    // Don't automatically load any user - let the app decide when to login
+    // fetchUser('user1');
+    setLoading(false); // Set loading to false since we're not fetching anything
   }, []);
 
   const contextValue: UserContextType = {
@@ -207,7 +222,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     error,
     setUser,
     refreshUser,
-    switchUser
+    switchUser,
+    logout,
+    login
   };
 
   return (
