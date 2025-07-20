@@ -74,14 +74,6 @@ export default function TabOneScreen() {
   // Use the first nearby user for display (or fallback to mock)
   const nearbyUser = nearbyUsers[0] || getUserById('user2');
 
-  // Quick user switcher for testing
-  const handleQuickSwitch = async () => {
-    const currentUid = user?.uid;
-    const nextUid = currentUid === 'user1' ? 'user2' : 
-                   currentUid === 'user2' ? 'user3' : 'user1';
-    await switchUser(nextUid);
-  };
-
   // Initialize Socket.IO connection
   const initializeSocket = useCallback(async () => {
     try {
@@ -692,7 +684,7 @@ export default function TabOneScreen() {
               Nearby: {nearbyUsers.map(u => u.name).join(', ')}
             </ThemedText>
           )}
-          <TouchableOpacity style={styles.switchButton} onPress={handleQuickSwitch}>
+          <TouchableOpacity style={styles.switchButton}>
             <ThemedText style={styles.switchButtonText}>Quick Switch User</ThemedText>
           </TouchableOpacity>
         </ThemedView>

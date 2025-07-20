@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { AppState } from 'react-native';
 
 export interface User {
   uid: string;
@@ -172,6 +173,28 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const switchUser = async (uid: string) => {
     await fetchUser(uid);
   };
+
+  // Handle app state changes to reset user context on app exit
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: string) => {
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        console.log('🔄 App going to background, preserving user context');
+      } else if (nextAppState === 'active') {
+        console.log('🔄 App became active');
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    // Cleanup function for when the component unmounts (app closes)
+    return () => {
+      subscription?.remove();
+      console.log('🔄 UserContext cleanup - resetting user data');
+      setUser(null);
+      setLoading(true);
+      setError(null);
+    };
+  }, []);
 
   useEffect(() => {
     // For now, always load Alice (user1) as the default user
