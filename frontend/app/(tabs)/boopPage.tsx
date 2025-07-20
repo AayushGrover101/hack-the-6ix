@@ -14,6 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import ParallaxScrollView from "@/components/ParallaxScrollView";
+import Compass from "@/components/Compass";
 import * as Location from "expo-location";
 import * as TaskManager from "expo-task-manager";
 
@@ -56,6 +57,10 @@ export default function TabOneScreen() {
 
   // Slider state
   const [sliderValue, setSliderValue] = useState(0); // 0-100, represents progress percentage
+  const [arrowRotation, setArrowRotation] = useState(0); // 0-360 degrees
+
+  // Profile image URL - you can change this to any URL
+  const profileImageUrl = "https://media.licdn.com/dms/image/v2/D5603AQF6gPTl46j53w/profile-displayphoto-shrink_400_400/B56ZX4zDxuHQAk-/0/1743635890387?e=1755734400&v=beta&t=NyhNb_F72PO9N5KdJpaUjP7PNDpyQy8rlP1JLSTSK4c";
 
   // Helper function to calculate bottom gradient color based on intensity
   const getBottomGradientColor = (intensity: number) => {
@@ -341,12 +346,11 @@ export default function TabOneScreen() {
             style={styles.gradientWrapper}
           >
             <View style={styles.profileCard}>
-              <View style={styles.profileImageContainer}>
-                <Image
-                  source={require("@/assets/images/adaptive-icon.png")}
-                  style={styles.profileImage}
-                />
-              </View>
+              <Compass 
+                profileImageUrl={profileImageUrl}
+                rotation={arrowRotation}
+                size={140}
+              />
               <View style={styles.profileInfo}>
                 <ThemedText style={styles.profileName}>Jesse</ThemedText>
                 <ThemedText style={styles.profileDistance}>50m</ThemedText>
@@ -390,7 +394,7 @@ export default function TabOneScreen() {
                     ]}
                   >
                     <Image
-                      source={require("@/assets/images/adaptive-icon.png")}
+                      source={profileImageUrl}
                       style={styles.sliderAvatar}
                     />
                   </View>
@@ -404,7 +408,7 @@ export default function TabOneScreen() {
                     ]}
                   >
                     <Image
-                      source={require("@/assets/images/adaptive-icon.png")}
+                      source={profileImageUrl}
                       style={styles.sliderAvatar}
                     />
                   </View>
@@ -426,6 +430,22 @@ export default function TabOneScreen() {
                   value={sliderValue}
                   onValueChange={setSliderValue}
                   minimumTrackTintColor="#4785EA"
+                  maximumTrackTintColor="#d3d3d3"
+                />
+              </View>
+
+              {/* Arrow Rotation Slider */}
+              <View style={styles.sliderControlContainer}>
+                <ThemedText style={styles.sliderLabel}>
+                  Arrow Rotation: {arrowRotation.toFixed(0)}°
+                </ThemedText>
+                <Slider
+                  style={styles.slider}
+                  minimumValue={0}
+                  maximumValue={360}
+                  value={arrowRotation}
+                  onValueChange={setArrowRotation}
+                  minimumTrackTintColor="#F06C6C"
                   maximumTrackTintColor="#d3d3d3"
                 />
               </View>
@@ -599,23 +619,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 16,
     marginBottom: 40,
-  },
-  profileImageContainer: {
-    marginRight: 16,
-    borderRadius: 100,
-    borderColor: "#FFFFFF",
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 10,
-    elevation: 10,
-  },
-  profileImage: {
-    width: 140,
-    height: 140,
-    borderRadius: 100,
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
   },
   profileInfo: {
     flex: 1,
