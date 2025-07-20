@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.IO Test Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .input-group {
+            margin: 10px 0;
+        }
+        label {
+            display: inline-block;
+            width: 100px;
+            font-weight: bold;
+        }
+        input, button {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .alert {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .user-list {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .user-card {
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 4px;
+            background: white;
+            min-width: 150px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Socket.IO Test Client</h1>
+    
+    <!-- Connection Status -->
+    <div class="container">
+        <h2>Connection Status</h2>
+        <div id="status" class="status disconnected">Disconnected</div>
+        <button onclick="connect()">Connect</button>
+        <button onclick="disconnect()">Disconnect</button>
+    </div>
+
+    <!-- User Selection -->
+    <div class="container">
+        <h2>User Selection</h2>
+        <div class="input-group">
+            <label>User ID:</label>
+            <select id="userId">
+                <option value="1">1 - Alice Johnson</option>
+                <option value="2">2 - Bob Smith</option>
+                <option value="3">3 - Charlie Brown</option>
+            </select>
+            <button onclick="updateUserSelection()">Change User</button>
+        </div>
+        <div class="input-group">
+            <label>Current User:</label>
+            <span id="currentUser">Not selected</span>
+            <button onclick="refreshUserData()">Refresh User Data</button>
+        </div>
+        <div class="input-group">
+            <label>Current Group:</label>
+            <span id="currentGroup">None</span>
+        </div>
+    </div>
+
+    <!-- Location Control -->
+    <div class="container">
+        <h2>Location Control</h2>
+        <div class="input-group">
+            <label>Latitude:</label>
+            <input type="number" id="latitude" step="0.000001" value="43.6532">
+        </div>
+        <div class="input-group">
+            <label>Longitude:</label>
+            <input type="number" id="longitude" step="0.000001" value="-79.3832">
+        </div>
+        <button onclick="updateLocation()">Update Location</button>
+        <button onclick="simulateMovement()">Simulate Movement</button>
+    </div>
+
+    <!-- Group Management -->
+    <div class="container">
+        <h2>Group Management</h2>
+        <div class="input-group">
+            <label>Group Name:</label>
+            <input type="text" id="groupName" placeholder="Enter group name">
+        </div>
+        <button onclick="createGroup()">Create Group</button>
+        <div class="input-group">
+            <label>Group ID:</label>
+            <input type="text" id="groupId" placeholder="Enter group ID to join">
+        </div>
+        <button onclick="joinGroup()">Join Group</button>
+        <button onclick="leaveGroup()">Leave Group</button>
+    </div>
+
+    <!-- Boop Control -->
+    <div class="container">
+        <h2>Boop Control</h2>
+        <div class="input-group">
+            <label>Target User ID:</label>
+            <select id="targetUserId">
+                <option value="1">1 - Alice Johnson</option>
+                <option value="2">2 - Bob Smith</option>
+                <option value="3">3 - Charlie Brown</option>
+            </select>
+        </div>
+        <button onclick="boopUser()">Boop User</button>
+    </div>
+
+    <!-- Nearby Users -->
+    <div class="container">
+        <h2>Nearby Users</h2>
+        <button onclick="getNearbyUsers()">Get Nearby Users</button>
+        <div id="nearbyUsers" class="user-list"></div>
+    </div>
+
+    <!-- Event Log -->
+    <div class="container">
+        <h2>Event Log</h2>
+        <button onclick="clearLog()">Clear Log</button>
+        <div id="log" class="log"></div>
+    </div>
+
+    <!-- Alerts -->
+    <div id="alerts"></div>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        let socket;
+        let currentUserId = null;
+        let currentUser = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            updateUserDisplay();
+            
+            // Add event listener to user selection dropdown
+            document.getElementById('userId').addEventListener('change', function() {
+                updateUserSelection();
+            });
+        });
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function showAlert(message, type = 'info') {
+            const alertsDiv = document.getElementById('alerts');
+            const alert = document.createElement('div');
+            alert.className = `alert ${type}`;
+            alert.textContent = message;
+            alertsDiv.appendChild(alert);
+            setTimeout(() => alert.remove(), 5000);
+        }
+
+        function updateUserDisplay() {
+            const userSelect = document.getElementById('userId');
+            const currentUserSpan = document.getElementById('currentUser');
+            const currentGroupSpan = document.getElementById('currentGroup');
+            
+            if (currentUser) {
+                currentUserSpan.textContent = `${currentUser.name} (${currentUser.uid})`;
+                currentGroupSpan.textContent = currentUser.groupId || 'None';
+            } else {
+                currentUserSpan.textContent = 'Not selected';
+                currentGroupSpan.textContent = 'None';
+            }
+        }
+
+        function updateUserSelection() {
+            const userId = document.getElementById('userId').value;
+            const hardcodedUsers = {
+                '1': { uid: 'user1', name: 'Alice Johnson' },
+                '2': { uid: 'user2', name: 'Bob Smith' },
+                '3': { uid: 'user3', name: 'Charlie Brown' }
+            };
+            
+            currentUserId = userId;
+            currentUser = hardcodedUsers[userId];
+            
+            updateUserDisplay();
+            log(`User changed to: ${currentUser.name} (${currentUser.uid})`);
+            
+            // If connected, disconnect and reconnect with new user
+            if (socket && socket.connected) {
+                log('Disconnecting to reconnect with new user...');
+                socket.disconnect();
+                setTimeout(() => {
+                    connect();
+                }, 1000);
+            }
+        }
+
+        function connect() {
+            if (socket) {
+                socket.disconnect();
+            }
+
+            currentUserId = document.getElementById('userId').value;
+            const hardcodedUsers = {
+                '1': { uid: 'user1', name: 'Alice Johnson' },
+                '2': { uid: 'user2', name: 'Bob Smith' },
+                '3': { uid: 'user3', name: 'Charlie Brown' }
+            };
+            currentUser = hardcodedUsers[currentUserId];
+
+            socket = io('http://localhost:3000', {
+                extraHeaders: {
+                    'x-user-id': currentUserId
+                }
+            });
+
+            socket.on('connect', () => {
+                document.getElementById('status').textContent = 'Connected';
+                document.getElementById('status').className = 'status connected';
+                log(`Connected as ${currentUser.name}`);
+                updateUserDisplay();
+                
+                // Refresh user data from database
+                socket.emit('refresh_user', { uid: currentUser.uid });
+                
+                // Automatically set a default location for the user
+                setTimeout(() => {
+                    const defaultLat = 43.6532;
+                    const defaultLng = -79.3832;
+                    
+                    socket.emit('update_location', {
+                        uid: currentUser.uid,
+                        latitude: defaultLat,
+                        longitude: defaultLng
+                    });
+                    
+                    log(`Set default location for ${currentUser.name}: ${defaultLat}, ${defaultLng}`);
+                }, 500);
+            });
+
+            socket.on('disconnect', () => {
+                document.getElementById('status').textContent = 'Disconnected';
+                document.getElementById('status').className = 'status disconnected';
+                log('Disconnected');
+            });
+
+            socket.on('location_update_success', (data) => {
+                log(`Location updated successfully: ${JSON.stringify(data)}`);
+            });
+
+            socket.on('location_update_error', (data) => {
+                log(`Location update error: ${JSON.stringify(data)}`);
+                showAlert(`Location update failed: ${data.error}`, 'error');
+            });
+
+            socket.on('member_location_updated', (data) => {
+                log(`Group member location updated: ${JSON.stringify(data)}`);
+                showAlert(`${data.name} moved to a new location`, 'info');
+            });
+
+            socket.on('proximity_alert', (data) => {
+                log(`PROXIMITY ALERT: ${data.nearbyUser.name} is ${data.distance.toFixed(1)}m away!`);
+                showAlert(`${data.nearbyUser.name} is nearby (${data.distance.toFixed(1)}m)`, 'warning');
+            });
+
+            socket.on('boop_happened', (data) => {
+                log(`BOOP: ${data.booper.name} booped ${data.boopee.name}!`);
+                showAlert(`BOOP! ${data.booper.name} booped ${data.boopee.name}`, 'success');
+            });
+
+            socket.on('boop_success', (data) => {
+                log(`Boop successful: ${JSON.stringify(data)}`);
+            });
+
+            socket.on('boop_error', (data) => {
+                log(`Boop error: ${JSON.stringify(data)}`);
+                showAlert(`Boop failed: ${data.error}`, 'error');
+            });
+
+            socket.on('user_refreshed', (data) => {
+                log(`User data refreshed: ${JSON.stringify(data)}`);
+                // Update current user with latest data from database
+                if (data.user) {
+                    currentUser = { ...currentUser, ...data.user };
+                    updateUserDisplay();
+                }
+            });
+
+            socket.on('user_refresh_error', (data) => {
+                log(`User refresh error: ${JSON.stringify(data)}`);
+                showAlert(`User refresh failed: ${data.error}`, 'error');
+            });
+
+
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+            }
+        }
+
+        function updateLocation() {
+            if (!socket || !socket.connected) {
+                showAlert('Please connect first', 'error');
+                return;
+            }
+
+            const latitude = parseFloat(document.getElementById('latitude').value);
+            const longitude = parseFloat(document.getElementById('longitude').value);
+
+            const locationData = {
+                uid: currentUser.uid,
+                latitude: latitude,
+                longitude: longitude
+            };
+            
+            console.log('Sending location update:', locationData);
+            socket.emit('update_location', locationData);
+
+            log(`Updating location to: ${latitude}, ${longitude}`);
+        }
+
+        function simulateMovement() {
+            if (!socket || !socket.connected) {
+                showAlert('Please connect first', 'error');
+                return;
+            }
+
+            // Simulate movement around Toronto
+            const baseLat = 43.6532;
+            const baseLng = -79.3832;
+            const radius = 0.001; // Small radius for testing
+
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    const angle = (i / 5) * 2 * Math.PI;
+                    const lat = baseLat + radius * Math.cos(angle);
+                    const lng = baseLng + radius * Math.sin(angle);
+                    
+                    document.getElementById('latitude').value = lat.toFixed(6);
+                    document.getElementById('longitude').value = lng.toFixed(6);
+                    
+                    socket.emit('update_location', {
+                        uid: currentUser.uid,
+                        latitude: lat,
+                        longitude: lng
+                    });
+                    
+                    log(`Simulated movement ${i + 1}/5: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+                }, i * 2000); // 2 second intervals
+            }
+        }
+
+        async function createGroup() {
+            if (!currentUser) {
+                showAlert('Please select a user first', 'error');
+                return;
+            }
+
+            const groupName = document.getElementById('groupName').value;
+            if (!groupName) {
+                showAlert('Please enter a group name', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:3000/groups', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-user-id': currentUserId
+                    },
+                    body: JSON.stringify({ name: groupName })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    log(`Group created: ${JSON.stringify(data)}`);
+                    document.getElementById('groupId').value = data.groupId;
+                    showAlert(`Group created with ID: ${data.groupId}`, 'success');
+                    
+                    // Refresh user data to get updated groupId
+                    setTimeout(() => {
+                        socket.emit('refresh_user', { uid: currentUser.uid });
+                        log('Refreshing user data after group creation...');
+                    }, 500);
+                } else {
+                    log(`Group creation failed: ${JSON.stringify(data)}`);
+                    showAlert(`Group creation failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                log(`Error creating group: ${error.message}`);
+                showAlert(`Error creating group: ${error.message}`, 'error');
+            }
+        }
+
+        async function joinGroup() {
+            if (!currentUser) {
+                showAlert('Please select a user first', 'error');
+                return;
+            }
+
+            const groupId = document.getElementById('groupId').value;
+            if (!groupId) {
+                showAlert('Please enter a group ID', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`http://localhost:3000/join-group/${groupId}`, {
+                    method: 'POST',
+                    headers: {
+                        'x-user-id': currentUserId
+                    }
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    log(`Joined group: ${JSON.stringify(data)}`);
+                    showAlert(`Successfully joined group: ${data.group.name}`, 'success');
+                    
+                    // Refresh user data to get updated groupId
+                    setTimeout(() => {
+                        socket.emit('refresh_user', { uid: currentUser.uid });
+                        log('Refreshing user data after joining group...');
+                    }, 500);
+                } else {
+                    log(`Join group failed: ${JSON.stringify(data)}`);
+                    showAlert(`Join group failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                log(`Error joining group: ${error.message}`);
+                showAlert(`Error joining group: ${error.message}`, 'error');
+            }
+        }
+
+        async function leaveGroup() {
+            if (!currentUser) {
+                showAlert('Please select a user first', 'error');
+                return;
+            }
+
+            // Check if user is in a group
+            if (!currentUser.groupId) {
+                showAlert('User is not in any group', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`http://localhost:3000/leave-group/${currentUser.groupId}`, {
+                    method: 'POST',
+                    headers: {
+                        'x-user-id': currentUserId
+                    }
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    log(`Left group: ${JSON.stringify(data)}`);
+                    showAlert('Successfully left group', 'success');
+                    
+                    // Clear the group ID input field
+                    document.getElementById('groupId').value = '';
+                    
+                    // Refresh user data to get updated groupId (should be null)
+                    setTimeout(() => {
+                        socket.emit('refresh_user', { uid: currentUser.uid });
+                        log('Refreshing user data after leaving group...');
+                    }, 500);
+                } else {
+                    log(`Leave group failed: ${JSON.stringify(data)}`);
+                    showAlert(`Leave group failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                log(`Error leaving group: ${error.message}`);
+                showAlert(`Error leaving group: ${error.message}`, 'error');
+            }
+        }
+
+        function boopUser() {
+            if (!socket || !socket.connected) {
+                showAlert('Please connect first', 'error');
+                return;
+            }
+
+            const targetUserId = document.getElementById('targetUserId').value;
+            const hardcodedUsers = {
+                '1': { uid: 'user1', name: 'Alice Johnson' },
+                '2': { uid: 'user2', name: 'Bob Smith' },
+                '3': { uid: 'user3', name: 'Charlie Brown' }
+            };
+            const targetUser = hardcodedUsers[targetUserId];
+
+            const latitude = parseFloat(document.getElementById('latitude').value);
+            const longitude = parseFloat(document.getElementById('longitude').value);
+
+            socket.emit('boop', {
+                booperUid: currentUser.uid,
+                boopeeUid: targetUser.uid,
+                latitude: latitude,
+                longitude: longitude
+            });
+
+            log(`Attempting to boop ${targetUser.name}`);
+        }
+
+        async function getNearbyUsers() {
+            if (!currentUser) {
+                showAlert('Please select a user first', 'error');
+                return;
+            }
+
+            const latitude = parseFloat(document.getElementById('latitude').value);
+            const longitude = parseFloat(document.getElementById('longitude').value);
+
+            try {
+                const response = await fetch(`http://localhost:3000/users/nearby?latitude=${latitude}&longitude=${longitude}&radius=1000`, {
+                    headers: {
+                        'x-user-id': currentUserId
+                    }
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    log(`Nearby users: ${JSON.stringify(data)}`);
+                    displayNearbyUsers(data.nearbyUsers);
+                } else {
+                    log(`Get nearby users failed: ${JSON.stringify(data)}`);
+                    showAlert(`Get nearby users failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                log(`Error getting nearby users: ${error.message}`);
+                showAlert(`Error getting nearby users: ${error.message}`, 'error');
+            }
+        }
+
+        function displayNearbyUsers(users) {
+            const container = document.getElementById('nearbyUsers');
+            container.innerHTML = '';
+
+            if (users.length === 0) {
+                container.innerHTML = '<p>No users nearby</p>';
+                return;
+            }
+
+            users.forEach(user => {
+                const userCard = document.createElement('div');
+                userCard.className = 'user-card';
+                userCard.innerHTML = `
+                    <strong>${user.name}</strong><br>
+                    UID: ${user.uid}<br>
+                    Location: ${user.location.coordinates[1].toFixed(6)}, ${user.location.coordinates[0].toFixed(6)}
+                `;
+                container.appendChild(userCard);
+            });
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        function refreshUserData() {
+            if (!socket || !socket.connected) {
+                showAlert('Please connect first', 'error');
+                return;
+            }
+
+            socket.emit('refresh_user', { uid: currentUser.uid });
+            log(`Refreshing user data for ${currentUser.name}...`);
+        }
+    </script>
+</body>
+</html> 

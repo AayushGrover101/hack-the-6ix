@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boop App - Web Client</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .status.connected {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4CAF50;
+        }
+
+        .status.disconnected {
+            background: rgba(244, 67, 54, 0.2);
+            color: #F44336;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+            display: flex;
+            align-items: center;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin-right: 10px;
+            border-radius: 2px;
+        }
+
+        .user-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+            transition: all 0.3s ease;
+        }
+
+        .user-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .user-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .user-distance {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .boop-indicator {
+            display: inline-block;
+            background: #4CAF50;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-left: 10px;
+        }
+
+        .boop-card {
+            background: #fff3e0;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #ff9800;
+        }
+
+        .boop-text {
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .boop-time {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+            font-style: italic;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #333;
+            border: 1px solid #dee2e6;
+        }
+
+        .btn-secondary:hover {
+            background: #e9ecef;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+            max-width: 300px;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .notification-message {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .notification.success {
+            border-left: 4px solid #4CAF50;
+        }
+
+        .notification.info {
+            border-left: 4px solid #2196F3;
+        }
+
+        .notification.warning {
+            border-left: 4px solid #FF9800;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse {
+            animation: pulse 0.6s ease-in-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤝 Boop App</h1>
+            <div id="status" class="status disconnected">Disconnected</div>
+        </div>
+
+        <div class="content">
+            <div class="controls">
+                <button class="btn btn-primary" onclick="connectAsUser('1')">Connect as Alice</button>
+                <button class="btn btn-primary" onclick="connectAsUser('2')">Connect as Bob</button>
+                <button class="btn btn-primary" onclick="connectAsUser('3')">Connect as Charlie</button>
+            </div>
+
+            <div class="section">
+                <div class="section-title">📍 Current Location</div>
+                <div id="location-info" class="user-card">
+                    <div class="user-name">Not connected</div>
+                    <div class="user-distance">Location tracking inactive</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">👥 Nearby Users</div>
+                <div id="nearby-users">
+                    <div class="empty-state">No nearby users detected</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">🤝 Recent Boops</div>
+                <div id="boop-history">
+                    <div class="empty-state">No boops yet</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification" class="notification"></div>
+
+    <script>
+        // BoopClient class
+        class BoopClient {
+            constructor(userId, userName) {
+                this.userId = userId;
+                this.userName = userName;
+                this.socket = null;
+                this.isConnected = false;
+                this.currentLocation = null;
+                this.nearbyUsers = new Map();
+                this.boopHistory = [];
+                
+                this.onProximityAlert = null;
+                this.onBoopHappened = null;
+                this.onBoopSuccess = null;
+                this.onLocationUpdate = null;
+                this.onConnectionChange = null;
+            }
+
+            connect(serverUrl = 'http://localhost:3000') {
+                console.log(`🔌 Connecting as ${this.userName}...`);
+                
+                this.socket = io(serverUrl, {
+                    extraHeaders: {
+                        'x-user-id': this.userId
+                    }
+                });
+
+                this.setupEventHandlers();
+            }
+
+            setupEventHandlers() {
+                this.socket.on('connect', () => {
+                    console.log(`✅ Connected as ${this.userName}`);
+                    this.isConnected = true;
+                    this.onConnectionChange?.(true);
+                    
+                    setTimeout(() => {
+                        this.refreshUserData();
+                    }, 1000);
+                });
+
+                this.socket.on('disconnect', () => {
+                    console.log(`❌ Disconnected from server`);
+                    this.isConnected = false;
+                    this.onConnectionChange?.(false);
+                });
+
+                this.socket.on('location_update_success', (data) => {
+                    console.log(`📍 Location updated successfully`);
+                    this.onLocationUpdate?.(data);
+                });
+
+                this.socket.on('location_update_error', (data) => {
+                    console.error(`❌ Location update failed:`, data.error);
+                    showNotification('Error', data.error, 'warning');
+                });
+
+                this.socket.on('user_refreshed', (data) => {
+                    console.log(`🔄 User data refreshed:`, data.user);
+                });
+
+                this.socket.on('user_refresh_error', (data) => {
+                    console.error(`❌ User refresh failed:`, data.error);
+                });
+
+                this.socket.on('proximity_alert', (data) => {
+                    const { nearbyUser, distance, canBoop } = data;
+                    
+                    this.nearbyUsers.set(nearbyUser.uid, {
+                        ...nearbyUser,
+                        distance,
+                        canBoop,
+                        lastSeen: new Date()
+                    });
+
+                    console.log(`🚨 PROXIMITY: ${nearbyUser.name} is ${distance.toFixed(1)}m away ${canBoop ? '🟢 CAN BOOP' : '🟡 Nearby'}`);
+                    
+                    this.onProximityAlert?.(data);
+                });
+
+                this.socket.on('boop_happened', (data) => {
+                    const { booper, boopee, timestamp, distance } = data;
+                    
+                    this.boopHistory.push({
+                        booper,
+                        boopee,
+                        timestamp: new Date(timestamp),
+                        distance
+                    });
+
+                    console.log(`🤝 AUTO-BOOP: ${booper.name} and ${boopee.name} booped! (${distance.toFixed(1)}m apart)`);
+                    
+                    this.onBoopHappened?.(data);
+                });
+
+                this.socket.on('boop_success', (data) => {
+                    console.log(`✅ AUTO-BOOP SUCCESS: ${data.message} (${data.distance.toFixed(1)}m)`);
+                    this.onBoopSuccess?.(data);
+                });
+            }
+
+            updateLocation(latitude, longitude) {
+                if (!this.isConnected) {
+                    console.error('❌ Not connected to server');
+                    return false;
+                }
+
+                this.currentLocation = { latitude, longitude };
+                
+                console.log(`📍 Updating location to: ${latitude}, ${longitude}`);
+                
+                this.socket.emit('update_location', {
+                    uid: this.userId,
+                    latitude,
+                    longitude
+                });
+
+                return true;
+            }
+
+            refreshUserData() {
+                if (!this.isConnected) {
+                    console.error('❌ Not connected to server');
+                    return false;
+                }
+
+                console.log(`🔄 Refreshing user data...`);
+                
+                this.socket.emit('refresh_user', {
+                    uid: this.userId
+                });
+
+                return true;
+            }
+
+            getNearbyUsers() {
+                return Array.from(this.nearbyUsers.values());
+            }
+
+            getUsersInBoopRange() {
+                return this.getNearbyUsers().filter(user => user.canBoop);
+            }
+
+            getBoopHistory() {
+                return [...this.boopHistory];
+            }
+
+            disconnect() {
+                if (this.socket) {
+                    this.socket.disconnect();
+                    this.socket = null;
+                    this.isConnected = false;
+                    console.log('🔌 Disconnected from server');
+                }
+            }
+
+            setProximityHandler(handler) {
+                this.onProximityAlert = handler;
+            }
+
+            setBoopHandler(handler) {
+                this.onBoopHappened = handler;
+            }
+
+            setBoopSuccessHandler(handler) {
+                this.onBoopSuccess = handler;
+            }
+
+            setLocationUpdateHandler(handler) {
+                this.onLocationUpdate = handler;
+            }
+
+            setConnectionChangeHandler(handler) {
+                this.onConnectionChange = handler;
+            }
+        }
+
+        // Global variables
+        let client = null;
+        let currentUser = null;
+
+        // User data
+        const USERS = {
+            '1': { uid: 'user1', name: 'Alice Johnson' },
+            '2': { uid: 'user2', name: 'Bob Smith' },
+            '3': { uid: 'user3', name: 'Charlie Brown' }
+        };
+
+        // Connect as a specific user
+        function connectAsUser(userId) {
+            if (client) {
+                client.disconnect();
+            }
+
+            currentUser = USERS[userId];
+            client = new BoopClient(userId, currentUser.name);
+            
+            setupEventHandlers(client);
+            client.connect();
+        }
+
+        // Setup event handlers
+        function setupEventHandlers(client) {
+            client.setConnectionChangeHandler((connected) => {
+                updateConnectionStatus(connected);
+                if (connected) {
+                    startLocationTracking();
+                }
+            });
+
+            client.setProximityHandler((data) => {
+                const { nearbyUser, distance, canBoop } = data;
+                
+                updateNearbyUsers();
+                
+                showNotification(
+                    canBoop ? '🤝 Boop Available!' : '🚨 Someone Nearby',
+                    `${nearbyUser.name} is ${distance.toFixed(1)}m away`,
+                    canBoop ? 'success' : 'info'
+                );
+            });
+
+            client.setBoopHandler((data) => {
+                const { booper, boopee, distance } = data;
+                
+                updateBoopHistory();
+                
+                showNotification(
+                    '🤝 Boop!',
+                    `${booper.name} and ${boopee.name} just booped!`,
+                    'success'
+                );
+                
+                // Add pulse animation to boop history
+                document.getElementById('boop-history').classList.add('pulse');
+                setTimeout(() => {
+                    document.getElementById('boop-history').classList.remove('pulse');
+                }, 600);
+            });
+
+            client.setBoopSuccessHandler((data) => {
+                showNotification('Success', 'Auto-boop successful!', 'success');
+            });
+
+            client.setLocationUpdateHandler((data) => {
+                updateLocationInfo(data.user.location);
+            });
+        }
+
+        // Update connection status
+        function updateConnectionStatus(connected) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = connected ? 'Connected' : 'Disconnected';
+            statusEl.className = `status ${connected ? 'connected' : 'disconnected'}`;
+        }
+
+        // Update location info
+        function updateLocationInfo(location) {
+            const locationEl = document.getElementById('location-info');
+            if (location) {
+                locationEl.innerHTML = `
+                    <div class="user-name">📍 Location Active</div>
+                    <div class="user-distance">${location.coordinates[1].toFixed(6)}, ${location.coordinates[0].toFixed(6)}</div>
+                `;
+            } else {
+                locationEl.innerHTML = `
+                    <div class="user-name">📍 Getting Location...</div>
+                    <div class="user-distance">Location tracking active</div>
+                `;
+            }
+        }
+
+        // Update nearby users
+        function updateNearbyUsers() {
+            if (!client) return;
+
+            const nearbyUsers = client.getNearbyUsers();
+            const container = document.getElementById('nearby-users');
+            
+            if (nearbyUsers.length === 0) {
+                container.innerHTML = '<div class="empty-state">No nearby users detected</div>';
+                return;
+            }
+
+            container.innerHTML = nearbyUsers.map(user => `
+                <div class="user-card">
+                    <div class="user-name">
+                        ${user.name}
+                        ${user.canBoop ? '<span class="boop-indicator">CAN BOOP</span>' : ''}
+                    </div>
+                    <div class="user-distance">${user.distance.toFixed(1)}m away</div>
+                </div>
+            `).join('');
+        }
+
+        // Update boop history
+        function updateBoopHistory() {
+            if (!client) return;
+
+            const boopHistory = client.getBoopHistory();
+            const container = document.getElementById('boop-history');
+            
+            if (boopHistory.length === 0) {
+                container.innerHTML = '<div class="empty-state">No boops yet</div>';
+                return;
+            }
+
+            container.innerHTML = boopHistory.slice(-5).map(boop => `
+                <div class="boop-card">
+                    <div class="boop-text">🤝 ${boop.booper.name} & ${boop.boopee.name}</div>
+                    <div class="boop-time">${boop.timestamp.toLocaleTimeString()} (${boop.distance.toFixed(1)}m)</div>
+                </div>
+            `).join('');
+        }
+
+        // Start location tracking
+        function startLocationTracking() {
+            if (!navigator.geolocation) {
+                showNotification('Error', 'Geolocation not supported', 'warning');
+                return;
+            }
+
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 5000
+            };
+
+            navigator.geolocation.watchPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    client?.updateLocation(latitude, longitude);
+                },
+                (error) => {
+                    console.error('Location error:', error);
+                    showNotification('Location Error', 'Failed to get location', 'warning');
+                },
+                options
+            );
+        }
+
+        // Show notification
+        function showNotification(title, message, type = 'info') {
+            const notification = document.getElementById('notification');
+            notification.innerHTML = `
+                <div class="notification-title">${title}</div>
+                <div class="notification-message">${message}</div>
+            `;
+            notification.className = `notification ${type} show`;
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 5000);
+        }
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Boop App Web Client loaded');
+            showNotification('Welcome', 'Click a user to connect and start booping!', 'info');
+        });
+    </script>
+</body>
+</html> 

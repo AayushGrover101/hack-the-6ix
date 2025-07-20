@@ -15,22 +15,25 @@ const port = process.env.PORT || 3000;
 // Initialize Socket.IO with CORS
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || ["http://localhost:8081", "http://localhost:3000", "exp://localhost:8081", "https://hack-the-6ix.onrender.com", "*"],
-    methods: ["GET", "POST"],
-    credentials: true
+    origin: process.env.FRONTEND_URL || ["http://localhost:8081", "http://localhost:3000", "exp://localhost:8081", "https://hack-the-6ix.onrender.com", "null", "*"],
+    methods: ["GET", "POST", "OPTIONS"],
+    credentials: true,
+    allowedHeaders: ["Content-Type", "x-user-id", "user-id"]
   }
 });
 
 connectDB();
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL || ["http://localhost:8081", "http://localhost:3000", "exp://localhost:8081", "https://hack-the-6ix.onrender.com", "*"],
-  credentials: true
+  origin: process.env.FRONTEND_URL || ["http://localhost:8081", "http://localhost:3000", "exp://localhost:8081", "https://hack-the-6ix.onrender.com", "null", "*"],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "x-user-id", "user-id"]
 }));
 
 app.use(express.json());
 
-// Hard-coded users
+// Hard-coded users - these should already exist in MongoDB
 const HARDCODED_USERS = {
   '1': {
     uid: 'user1',
@@ -78,47 +81,7 @@ const authenticateUser = async (req, res, next) => {
 
 app.use(authenticateUser);
 
-// Middleware to automatically create/update user in database
-app.use(async (req, res, next) => {
-  if (req.isAuthenticated && req.user) {
-    try {
-      const uid = req.user.uid;
-      const email = req.user.email;
-      const name = req.user.name;
-      const profilePicture = req.user.profilePicture;
-      
-      // Check if user already exists by uid
-      let user = await User.findOne({ uid });
-      
-      if (!user) {
-        // Create new user
-        user = new User({
-          uid,
-          email,
-          name,
-          profilePicture,
-          location: null,
-          groupId: null
-        });
-        
-        await user.save();
-        console.log(`Created hard-coded user: ${name} (${email})`);
-      } else {
-        // Update existing user if needed
-        if (user.name !== name || user.email !== email || user.profilePicture !== profilePicture) {
-          user.name = name;
-          user.email = email;
-          user.profilePicture = profilePicture;
-          await user.save();
-          console.log(`Updated hard-coded user: ${name} (${email})`);
-        }
-      }
-    } catch (error) {
-      console.error('Error in user creation middleware:', error);
-    }
-  }
-  next();
-});
+// Note: Users should already exist in MongoDB with uids: user1, user2, user3
 
 // Get available users for login
 app.get('/available-users', (req, res) => {
@@ -132,8 +95,46 @@ app.get('/available-users', (req, res) => {
   res.json({ users });
 });
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
 app.get('/', (req, res) => {
   res.send(req.isAuthenticated ? `Logged in as ${req.user.name}` : 'Not logged in');
+});
+
+// Get server statistics
+app.get('/stats', async (req, res) => {
+  try {
+    const totalUsers = await User.countDocuments();
+    const onlineUsers = await User.countDocuments({ 
+      isOnline: true,
+      lastSeen: { $gte: new Date(Date.now() - 5 * 60 * 1000) }
+    });
+    const totalGroups = await Group.countDocuments();
+    const totalBoops = await Group.aggregate([
+      { $unwind: '$boopLog' },
+      { $count: 'total' }
+    ]);
+
+    res.json({
+      users: {
+        total: totalUsers,
+        online: onlineUsers
+      },
+      groups: totalGroups,
+      boops: totalBoops[0]?.total || 0,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.post('/users', async (req, res) => {
@@ -164,6 +165,33 @@ app.get('/users', async (req, res) => {
   }
 });
 
+// Get nearby users within a radius (in meters) - MUST be before /users/:uid
+app.get('/users/nearby', async (req, res) => {
+  try {
+    const { latitude, longitude, radius = 1000 } = req.query; // Default 1km radius
+    
+    if (!latitude || !longitude) {
+      return res.status(400).json({ error: 'Latitude and longitude are required' });
+    }
+
+    const nearbyUsers = await User.find({
+      location: {
+        $near: {
+          $geometry: {
+            type: 'Point',
+            coordinates: [parseFloat(longitude), parseFloat(latitude)]
+          },
+          $maxDistance: parseInt(radius)
+        }
+      }
+    }).select('uid name location');
+
+    res.json({ nearbyUsers, radius: parseInt(radius) });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/users/:uid', async (req, res) => {
   try {
     const user = await User.findOne({ uid: req.params.uid });
@@ -171,6 +199,124 @@ app.get('/users/:uid', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update user profile
+app.put('/users/:uid', async (req, res) => {
+  try {
+    if (!req.isAuthenticated) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const { uid } = req.params;
+    const { name, email, profilePicture } = req.body;
+
+    // Only allow users to update their own profile
+    if (req.user.uid !== uid) {
+      return res.status(403).json({ error: 'Can only update your own profile' });
+    }
+
+    const user = await User.findOne({ uid });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Update allowed fields
+    if (name !== undefined) user.name = name;
+    if (email !== undefined) user.email = email;
+    if (profilePicture !== undefined) user.profilePicture = profilePicture;
+
+    await user.save();
+
+    res.json({ 
+      message: 'Profile updated successfully', 
+      user: {
+        uid: user.uid,
+        name: user.name,
+        email: user.email,
+        profilePicture: user.profilePicture,
+        location: user.location,
+        groupId: user.groupId
+      }
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Get user's current location
+app.get('/users/:uid/location', async (req, res) => {
+  try {
+    const user = await User.findOne({ uid: req.params.uid });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (!user.location) {
+      return res.status(404).json({ error: 'User location not available' });
+    }
+
+    res.json({
+      uid: user.uid,
+      name: user.name,
+      location: user.location,
+      lastSeen: user.lastSeen
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update user's online status
+app.put('/users/:uid/status', async (req, res) => {
+  try {
+    if (!req.isAuthenticated) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const { uid } = req.params;
+    const { isOnline } = req.body;
+
+    // Only allow users to update their own status
+    if (req.user.uid !== uid) {
+      return res.status(403).json({ error: 'Can only update your own status' });
+    }
+
+    const user = await User.findOne({ uid });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    user.isOnline = isOnline;
+    user.lastSeen = new Date();
+    await user.save();
+
+    res.json({ 
+      message: 'Status updated successfully', 
+      user: {
+        uid: user.uid,
+        name: user.name,
+        isOnline: user.isOnline,
+        lastSeen: user.lastSeen
+      }
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Get online users
+app.get('/users/online', async (req, res) => {
+  try {
+    const onlineUsers = await User.find({ 
+      isOnline: true,
+      lastSeen: { $gte: new Date(Date.now() - 5 * 60 * 1000) } // Online in last 5 minutes
+    }).select('uid name lastSeen');
+
+    res.json({ onlineUsers });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -201,7 +347,12 @@ app.post('/groups', async (req, res) => {
     });
     
     await group.save();
-    res.status(201).json(group);
+    
+    // Update user's groupId to the new group
+    user.groupId = groupId;
+    await user.save();
+    
+    res.status(201).json({ group, user });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -360,32 +511,86 @@ app.get('/groups/:groupId/members', async (req, res) => {
   }
 });
 
-// Get nearby users within a radius (in meters)
-app.get('/users/nearby', async (req, res) => {
+// Get group statistics
+app.get('/groups/:groupId/stats', async (req, res) => {
   try {
-    const { latitude, longitude, radius = 1000 } = req.query; // Default 1km radius
+    const { groupId } = req.params;
     
-    if (!latitude || !longitude) {
-      return res.status(400).json({ error: 'Latitude and longitude are required' });
+    const group = await Group.findOne({ groupId });
+    if (!group) {
+      return res.status(404).json({ error: 'Group not found' });
     }
 
-    const nearbyUsers = await User.find({
-      location: {
-        $near: {
-          $geometry: {
-            type: 'Point',
-            coordinates: [parseFloat(longitude), parseFloat(latitude)]
-          },
-          $maxDistance: parseInt(radius)
-        }
-      }
-    }).select('uid name location');
+    // Get member details
+    const members = await User.find({ uid: { $in: group.users } }).select('uid name isOnline lastSeen');
+    
+    // Calculate statistics
+    const totalMembers = members.length;
+    const onlineMembers = members.filter(m => m.isOnline).length;
+    const totalBoops = group.boopLog.length;
+    
+    // Get recent boops (last 24 hours)
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const recentBoops = group.boopLog.filter(boop => boop.timestamp >= oneDayAgo).length;
 
-    res.json({ nearbyUsers, radius: parseInt(radius) });
+    res.json({
+      groupId,
+      groupName: group.name,
+      stats: {
+        totalMembers,
+        onlineMembers,
+        totalBoops,
+        recentBoops,
+        createdAt: group.createdAt
+      },
+      members: members.map(m => ({
+        uid: m.uid,
+        name: m.name,
+        isOnline: m.isOnline,
+        lastSeen: m.lastSeen
+      }))
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Delete group (only by group creator or when empty)
+app.delete('/groups/:groupId', async (req, res) => {
+  try {
+    if (!req.isAuthenticated) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const { groupId } = req.params;
+    const uid = req.user.uid;
+    
+    const group = await Group.findOne({ groupId });
+    if (!group) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+
+    // Only allow deletion if user is the only member or group is empty
+    if (group.users.length > 1 && !group.users.includes(uid)) {
+      return res.status(403).json({ error: 'Cannot delete group with other members' });
+    }
+
+    // Remove groupId from all users in the group
+    await User.updateMany(
+      { uid: { $in: group.users } },
+      { $set: { groupId: null } }
+    );
+
+    // Delete the group
+    await Group.deleteOne({ groupId });
+
+    res.json({ message: 'Group deleted successfully' });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+
 
 // Boop endpoint - when two people boop each other
 app.post('/boop', async (req, res) => {
@@ -450,8 +655,21 @@ app.post('/boop', async (req, res) => {
     group.boopLog.push(boopEntry);
     await group.save();
 
-    // Emit real-time notification to group members via Socket.IO
-    io.to(booper.groupId).emit('boop_happened', {
+    // Emit real-time notification to booper and boopee only
+    io.to(booper.uid).emit('boop_happened', {
+      booper: {
+        uid: booper.uid,
+        name: booper.name
+      },
+      boopee: {
+        uid: boopee.uid,
+        name: boopee.name
+      },
+      timestamp: boopEntry.timestamp,
+      location: boopEntry.location
+    });
+    
+    io.to(boopee.uid).emit('boop_happened', {
       booper: {
         uid: booper.uid,
         name: booper.name
@@ -520,22 +738,57 @@ app.get('/groups/:groupId/boop-log', async (req, res) => {
 io.on('connection', (socket) => {
   console.log('A user connected');
 
+
+
+  // Handle user refresh - get latest user data from database
+  socket.on('refresh_user', async (data) => {
+    try {
+      const uid = data.uid;
+      console.log('Refreshing user data for:', uid);
+      
+      const user = await User.findOne({ uid });
+      if (!user) {
+        socket.emit('user_refresh_error', { error: 'User not found' });
+        return;
+      }
+      
+      socket.emit('user_refreshed', {
+        user: {
+          uid: user.uid,
+          name: user.name,
+          location: user.location,
+          groupId: user.groupId
+        }
+      });
+      
+      console.log('User refreshed:', { uid: user.uid, name: user.name, groupId: user.groupId });
+    } catch (error) {
+      console.error('User refresh error:', error);
+      socket.emit('user_refresh_error', { error: error.message });
+    }
+  });
+
   socket.on('update_location', async (data) => {
     try {
+      console.log('Location update received:', data);
       const uid = data.uid;
       const latitude = data.latitude;
       const longitude = data.longitude;
 
       if (!uid || latitude === undefined || longitude === undefined) {
+        console.log('Invalid location data:', { uid, latitude, longitude });
         socket.emit('location_update_error', { error: 'Invalid location data' });
         return;
       }
 
+      console.log('Looking for user with uid:', uid);
       const user = await User.findOne({ uid });
       if (!user) {
+        console.log('User not found for uid:', uid);
         socket.emit('location_update_error', { error: 'User not found' });
         return;
       }
+      console.log('Found user:', user.name);
 
       // Update location with proper MongoDB geospatial format
       user.location = {
@@ -543,7 +796,9 @@ io.on('connection', (socket) => {
         coordinates: [longitude, latitude] // MongoDB expects [longitude, latitude]
       };
       
+      console.log('Updating location for', user.name, 'to:', user.location);
       await user.save();
+      console.log('Location saved successfully');
       
       // Emit success with updated user data
       socket.emit('location_update_success', { 
@@ -565,109 +820,122 @@ io.on('connection', (socket) => {
         });
       }
 
+      // Check for mutual proximity notifications (100m radius)
+      const nearbyUsers = await User.find({
+        location: {
+          $near: {
+            $geometry: {
+              type: 'Point',
+              coordinates: [longitude, latitude]
+            },
+            $maxDistance: 100 // 100 meters
+          }
+        },
+        uid: { $ne: uid } // Exclude self
+      });
+
+      // Send mutual proximity notifications
+      nearbyUsers.forEach(nearbyUser => {
+        const distance = calculateDistance(
+          { latitude, longitude },
+          { 
+            latitude: nearbyUser.location.coordinates[1], 
+            longitude: nearbyUser.location.coordinates[0] 
+          }
+        );
+
+        // Check if users are within boop range (10 meters)
+        const isInBoopRange = distance <= 10;
+
+        // Notify the nearby user about this user
+        io.to(nearbyUser.uid).emit('proximity_alert', {
+          nearbyUser: {
+            uid: user.uid,
+            name: user.name,
+            location: user.location
+          },
+          distance: distance,
+          canBoop: isInBoopRange
+        });
+
+        // Notify this user about the nearby user
+        io.to(user.uid).emit('proximity_alert', {
+          nearbyUser: {
+            uid: nearbyUser.uid,
+            name: nearbyUser.name,
+            location: nearbyUser.location
+          },
+          distance: distance,
+          canBoop: isInBoopRange
+        });
+
+        // If users are in boop range, automatically trigger boop
+        if (isInBoopRange) {
+          console.log(`🤝 Auto-boop triggered: ${user.name} and ${nearbyUser.name} are ${distance.toFixed(1)}m apart`);
+          
+          // Create boop log entry
+          const boopEntry = {
+            booper: user.uid,
+            boopee: nearbyUser.uid,
+            timestamp: new Date(),
+            location: {
+              type: 'Point',
+              coordinates: [longitude, latitude]
+            }
+          };
+
+          // Emit real-time notification to both users
+          io.to(user.uid).emit('boop_happened', {
+            booper: {
+              uid: user.uid,
+              name: user.name
+            },
+            boopee: {
+              uid: nearbyUser.uid,
+              name: nearbyUser.name
+            },
+            timestamp: boopEntry.timestamp,
+            location: boopEntry.location,
+            distance: distance
+          });
+          
+          io.to(nearbyUser.uid).emit('boop_happened', {
+            booper: {
+              uid: user.uid,
+              name: user.name
+            },
+            boopee: {
+              uid: nearbyUser.uid,
+              name: nearbyUser.name
+            },
+            timestamp: boopEntry.timestamp,
+            location: boopEntry.location,
+            distance: distance
+          });
+
+          // Send success notification to both users
+          io.to(user.uid).emit('boop_success', {
+            message: 'Auto-boop successful!',
+            boop: boopEntry,
+            distance: distance
+          });
+          
+          io.to(nearbyUser.uid).emit('boop_success', {
+            message: 'Auto-boop successful!',
+            boop: boopEntry,
+            distance: distance
+          });
+        }
+      });
+
     } catch (error) {
       console.error('Location update error:', error);
       socket.emit('location_update_error', { error: error.message });
     }
   });
 
-  // Handle boop event via Socket.IO
-  socket.on('boop', async (data) => {
-    try {
-      const { booperUid, boopeeUid, latitude, longitude } = data;
-      
-      if (!booperUid || !boopeeUid) {
-        socket.emit('boop_error', { error: 'Both booper and boopee UIDs are required' });
-        return;
-      }
-
-      // Find both users
-      const booper = await User.findOne({ uid: booperUid });
-      const boopee = await User.findOne({ uid: boopeeUid });
-
-      if (!booper || !boopee) {
-        socket.emit('boop_error', { error: 'One or both users not found' });
-        return;
-      }
-
-      // Check if both users are in the same group
-      if (!booper.groupId || !boopee.groupId || booper.groupId !== boopee.groupId) {
-        socket.emit('boop_error', { error: 'Both users must be in the same group to boop' });
-        return;
-      }
-
-      // Find the group
-      const group = await Group.findOne({ groupId: booper.groupId });
-      if (!group) {
-        socket.emit('boop_error', { error: 'Group not found' });
-        return;
-      }
-
-      // Check if users are within booping distance (e.g., 10 meters)
-      if (booper.location && boopee.location && latitude && longitude) {
-        const boopLocation = { latitude, longitude };
-        const booperLocation = { 
-          latitude: booper.location.coordinates[1], 
-          longitude: booper.location.coordinates[0] 
-        };
-        const boopeeLocation = { 
-          latitude: boopee.location.coordinates[1], 
-          longitude: boopee.location.coordinates[0] 
-        };
-
-        const distanceToBooper = calculateDistance(boopLocation, booperLocation);
-        const distanceToBoopee = calculateDistance(boopLocation, boopeeLocation);
-
-        if (distanceToBooper > 10 || distanceToBoopee > 10) {
-          socket.emit('boop_error', { error: 'Users must be within 10 meters to boop' });
-          return;
-        }
-      }
-
-      // Create boop log entry
-      const boopEntry = {
-        booper: booperUid,
-        boopee: boopeeUid,
-        timestamp: new Date(),
-        location: latitude && longitude ? {
-          type: 'Point',
-          coordinates: [longitude, latitude]
-        } : null
-      };
-
-      // Add to group's boop log
-      group.boopLog.push(boopEntry);
-      await group.save();
-
-      // Emit real-time notification to group members
-      io.to(booper.groupId).emit('boop_happened', {
-        booper: {
-          uid: booper.uid,
-          name: booper.name
-        },
-        boopee: {
-          uid: boopee.uid,
-          name: boopee.name
-        },
-        timestamp: boopEntry.timestamp,
-        location: boopEntry.location
-      });
-
-      // Send success response to the booper
-      socket.emit('boop_success', {
-        message: 'Boop successful!',
-        boop: boopEntry,
-        group: {
-          groupId: group.groupId,
-          name: group.name
-        }
-      });
-
-    } catch (error) {
-      console.error('Socket boop error:', error);
-      socket.emit('boop_error', { error: error.message });
-    }
-  });
+  // Manual boop is no longer needed - boops happen automatically when users get close
+  // socket.on('boop', ...) - REMOVED
 
   socket.on('disconnect', () => {
     console.log('User disconnected');
