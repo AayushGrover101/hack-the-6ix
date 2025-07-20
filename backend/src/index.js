@@ -313,7 +313,7 @@ app.get('/users/online', async (req, res) => {
   try {
     const onlineUsers = await User.find({ 
       isOnline: true,
-      lastSeen: { $gte: new Date(Date.now() - 5 * 60 * 1000) } // Online in last 5 minutes
+      lastSeen: { $gte: new Date(Date.now() -  30 * 1000) } // Online in last 5 minutes
     }).select('uid name lastSeen');
 
     res.json({ onlineUsers });
@@ -813,6 +813,10 @@ io.on('connection', (socket) => {
         coordinates: [longitude, latitude] // MongoDB expects [longitude, latitude]
       };
       
+      // Update online status and last seen timestamp
+      user.isOnline = true;
+      user.lastSeen = new Date();
+      
       console.log('Updating location for', user.name, 'to:', user.location);
       await user.save();
       console.log('Location saved successfully');
@@ -837,7 +841,7 @@ io.on('connection', (socket) => {
         });
       }
 
-      // Check for mutual proximity notifications (100m radius)
+      // Check for mutual proximity notifications (100m radius) - only consider online users
       const nearbyUsers = await User.find({
         location: {
           $near: {
@@ -848,6 +852,8 @@ io.on('connection', (socket) => {
             $maxDistance: 100 // 100 meters
           }
         },
+        isOnline: true, // Only consider online users
+        lastSeen: { $gte: new Date(Date.now() - 30 * 1000) }, // Active in last 30 seconds
         uid: { $ne: uid } // Exclude self
       });
 
