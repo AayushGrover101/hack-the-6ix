@@ -734,6 +734,40 @@ app.get('/groups/:groupId/boop-log', async (req, res) => {
   }
 });
 
+// Periodic cleanup of stale online status (run every 30 seconds)
+setInterval(async () => {
+  try {
+    const thirtySecondsAgo = new Date(Date.now() - 30 * 1000);
+    
+    // Find users marked as online but haven't been seen recently
+    const staleUsers = await User.find({
+      isOnline: true,
+      lastSeen: { $lt: thirtySecondsAgo }
+    });
+    
+    if (staleUsers.length > 0) {
+      console.log(`Cleaning up ${staleUsers.length} stale online users`);
+      
+      // Set them as offline
+      await User.updateMany(
+        { _id: { $in: staleUsers.map(u => u._id) } },
+        { 
+          $set: { 
+            isOnline: false,
+            lastSeen: new Date()
+          }
+        }
+      );
+      
+      staleUsers.forEach(user => {
+        console.log(`Marked user ${user.name} (${user.uid}) as offline due to inactivity`);
+      });
+    }
+  } catch (error) {
+    console.error('Error in periodic online status cleanup:', error);
+  }
+}, 30000); // Run every 30 seconds
+
 // Socket.IO connection handling
 io.on('connection', (socket) => {
   console.log('A user connected');
@@ -756,6 +790,24 @@ io.on('connection', (socket) => {
   });
 
 
+
+  // Handle heartbeat to keep user online status fresh
+  socket.on('heartbeat', async (data) => {
+    try {
+      const uid = data.uid;
+      console.log('Heartbeat received from:', uid);
+      
+      const user = await User.findOne({ uid });
+      if (user) {
+        user.lastSeen = new Date();
+        user.isOnline = true;
+        await user.save();
+        console.log(`Updated lastSeen for user: ${user.name} (${uid})`);
+      }
+    } catch (error) {
+      console.error('Heartbeat error:', error);
+    }
+  });
 
   // Handle user refresh - get latest user data from database
   socket.on('refresh_user', async (data) => {
