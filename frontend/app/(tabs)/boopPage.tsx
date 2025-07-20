@@ -343,7 +343,7 @@ export default function TabOneScreen() {
             <View style={styles.profileCard}>
               <View style={styles.profileImageContainer}>
                 <Image
-                  source={require("@/assets/images/boop-group/jesse-headshot.png")}
+                  source={require("@/assets/images/adaptive-icon.png")}
                   style={styles.profileImage}
                 />
               </View>
@@ -390,7 +390,7 @@ export default function TabOneScreen() {
                     ]}
                   >
                     <Image
-                      source={require("@/assets/images/boop-group/aayush-headshot.png")}
+                      source={require("@/assets/images/adaptive-icon.png")}
                       style={styles.sliderAvatar}
                     />
                   </View>
@@ -404,7 +404,7 @@ export default function TabOneScreen() {
                     ]}
                   >
                     <Image
-                      source={require("@/assets/images/boop-group/jesse-headshot.png")}
+                      source={require("@/assets/images/adaptive-icon.png")}
                       style={styles.sliderAvatar}
                     />
                   </View>
