@@ -778,6 +778,9 @@ io.on('connection', (socket) => {
       const uid = data.uid;
       console.log('User joining personal room:', uid);
       
+      // Store the user UID in socket data for disconnect handling
+      socket.userUid = uid;
+      
       // Join the socket to a room named after the user's UID
       socket.join(uid);
       console.log(`Socket joined room: ${uid}`);
@@ -1025,12 +1028,10 @@ io.on('connection', (socket) => {
   socket.on('disconnect', async () => {
     console.log('User disconnected');
     
-    // Find which user disconnected by checking all rooms this socket was in
-    const rooms = Array.from(socket.rooms);
-    const userRooms = rooms.filter(room => room !== socket.id); // Exclude socket's own room
+    // Get the user UID from socket data
+    const uid = socket.userUid;
     
-    if (userRooms.length > 0) {
-      const uid = userRooms[0]; // Get the user's UID from their room
+    if (uid) {
       console.log(`User ${uid} disconnected, clearing their location`);
       
       try {
@@ -1050,6 +1051,8 @@ io.on('connection', (socket) => {
       } catch (error) {
         console.error('Error clearing user location on disconnect:', error);
       }
+    } else {
+      console.log('No user UID found for disconnected socket');
     }
   });
 });
