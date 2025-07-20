@@ -879,7 +879,7 @@ io.on('connection', (socket) => {
 
         // Check if users are within boop range (10 meters)
         const isInBoopRange = distance <= 10;
-
+        console.log('Nearby user:', nearbyUser.name, 'is in boop range:', isInBoopRange, " of ", user.uid);
         // Notify the nearby user about this user
         io.to(nearbyUser.uid).emit('proximity_alert', {
           nearbyUser: {
