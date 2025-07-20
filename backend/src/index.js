@@ -857,6 +857,7 @@ io.on('connection', (socket) => {
         uid: { $ne: uid } // Exclude self
       });
 
+      console.log('Nearby users:', nearbyUsers);
       // Send mutual proximity notifications
       nearbyUsers.forEach(nearbyUser => {
         const distance = calculateDistance(
