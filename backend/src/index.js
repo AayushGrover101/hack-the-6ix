@@ -192,7 +192,7 @@ app.post('/groups', async (req, res) => {
       return res.status(404).json({ error: 'User not found. Please create a user profile first.' });
     }
     
-    const groupId = uuidv4();
+    const groupId = Math.random().toString(36).substring(2, 8).toUpperCase();
     
     const group = new Group({
       groupId,
