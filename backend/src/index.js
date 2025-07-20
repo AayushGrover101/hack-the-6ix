@@ -868,7 +868,7 @@ io.on('connection', (socket) => {
 
       console.log('Connected nearby users:', connectedNearbyUsers);
       // Send mutual proximity notifications
-      nearbyUsers.forEach(nearbyUser => {
+      connectedNearbyUsers.forEach(nearbyUser => {
         const distance = calculateDistance(
           { latitude, longitude },
           { 
