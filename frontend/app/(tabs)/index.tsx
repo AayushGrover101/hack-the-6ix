@@ -1,320 +1,122 @@
-import { router } from "expo-router";
-import { useState, useEffect, useRef } from "react";
-import { Platform, StyleSheet, AppState, Button, Vibration } from "react-native";
-import Slider from "@react-native-community/slider";
-
-import { ThemedText } from "@/components/ThemedText";
+import { StyleSheet, Image, TouchableOpacity, Animated } from "react-native";
 import { ThemedView } from "@/components/ThemedView";
-import { CompassHeading } from "@/components/CompassHeading";
-import * as Location from "expo-location";
-import * as TaskManager from "expo-task-manager";
+import { ThemedText } from "@/components/ThemedText";
+import { IconSymbol } from "@/components/ui/IconSymbol";
+import { useRouter } from "expo-router";
+import { useEffect, useRef } from "react";
 
-const LOCATION_TASK_NAME = "background-location-task";
-let sharedLocationCallback:
-  | ((location: Location.LocationObject) => void)
-  | null = null;
-
-// location task for background updates
-TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }: any) => {
-  if (error) {
-    console.error("Background location task error:", error);
-    return;
-  }
-  if (data) {
-    const { locations } = data;
-    const timestamp = new Date().toLocaleTimeString();
-    console.log(
-      `[${timestamp}] Background location task received ${locations?.length} locations`
-    );
-
-    if (locations && locations.length > 0 && sharedLocationCallback) {
-      const callback = sharedLocationCallback;
-      callback(locations[0]);
-    }
-  }
-});
-
-export default function HomeScreen() {
-  const [appState, setAppState] = useState(AppState.currentState);
-  const [currTestLocation, setCurrTestLocation] =
-    useState<Location.LocationObject | null>(null);
-  const [detected, setDetected] = useState<boolean>(false); // TODO: make this a context or global state or smth
+export default function TabThreeScreen() {
+  const router = useRouter();
   
-  const [buzzDuration, setBuzzDuration] = useState(200);
-  const [waitTime, setWaitTime] = useState(500);
-  const intervalRef = useRef<number | null>(null);
-  // const [toggleDND, setToggleDND] = useState<boolean>(false);
+  // Animation values
+  const logoScale = useRef(new Animated.Value(0)).current;
+  const logoTranslateY = useRef(new Animated.Value(-50)).current;
+  const titleOpacity = useRef(new Animated.Value(0)).current;
+  const titleTranslateX = useRef(new Animated.Value(-100)).current;
+  const buttonOpacity = useRef(new Animated.Value(0)).current;
+  const buttonTranslateX = useRef(new Animated.Value(100)).current;
 
   useEffect(() => {
-    const handleAppStateChange = (
-      nextAppState: typeof AppState.currentState
-    ) => {
-      setAppState(nextAppState);
+    // Start animations sequence
+    const animateSequence = () => {
+      // Logo drop and pop animation
+      Animated.parallel([
+        Animated.spring(logoScale, {
+          toValue: 1,
+          tension: 100,
+          friction: 3,
+          useNativeDriver: true,
+        }),
+        Animated.spring(logoTranslateY, {
+          toValue: 0,
+          tension: 100,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      // Title slide in from left (delayed)
+      setTimeout(() => {
+        Animated.parallel([
+          Animated.timing(titleOpacity, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+          Animated.spring(titleTranslateX, {
+            toValue: 0,
+            tension: 100,
+            friction: 8,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }, 300);
+
+      // Button slide in from right (more delayed)
+      setTimeout(() => {
+        Animated.parallel([
+          Animated.timing(buttonOpacity, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+          Animated.spring(buttonTranslateX, {
+            toValue: 0,
+            tension: 100,
+            friction: 8,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }, 600);
     };
 
-    const subscription = AppState.addEventListener(
-      "change",
-      handleAppStateChange
-    );
-
-    return () => {
-      subscription?.remove();
-    };
-  }, []);
-
-  // make bzzzzzzzzz
-  useEffect(() => {
-    if (detected) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-
-      const startRepeatingVibration = () => {
-        Vibration.vibrate(buzzDuration);
-        
-        const interval = setInterval(() => {
-          Vibration.vibrate(buzzDuration);
-        }, waitTime);
-
-        intervalRef.current = interval;
-      };
-
-      startRepeatingVibration();
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      Vibration.cancel();
-    }
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-      Vibration.cancel();
-    };
-  }, [buzzDuration, waitTime, detected]);
-
-  useEffect(() => {
-    let cleanupInterval: any;
-
-    sharedLocationCallback = (location: Location.LocationObject) => {
-      setCurrTestLocation(location);
-      const timestamp = new Date().toLocaleTimeString();
-      const mode = appState === "active" ? "FOREGROUND" : "BACKGROUND";
-      console.log(`[${timestamp}] ${mode} Location updated:`, {
-        lat: location.coords.latitude,
-        lng: location.coords.longitude,
-        accuracy: location.coords.accuracy,
-        timestamp: location.timestamp,
-      });
-    };
-
-    const setupLocation = async () => {
-      try {
-        let { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted") {
-          console.log("Foreground permission denied");
-          return;
-        }
-
-        if (Platform.OS !== "ios") {
-          try {
-            const { status: backgroundStatus } =
-              await Location.requestBackgroundPermissionsAsync();
-            if (backgroundStatus !== "granted") {
-              console.log("Background permission denied on Android");
-            }
-          } catch (bgError) {
-            console.log(
-              "Background permission request failed on Android:",
-              bgError
-            );
-          }
-        } else {
-          console.log(
-            "Skipping background permissions on iOS (Expo Go limitation)"
-          );
-        }
-
-        try {
-          await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
-          console.log("Stopped existing location updates");
-        } catch {
-          console.log("No existing location updates to stop");
-        }
-
-        const locationConfig = {
-          accuracy: Location.Accuracy.High,
-          timeInterval: 2000, // CHANGE FOR ACTUAL REALISTIC STUFF
-          distanceInterval: 0, // also this
-        };
-
-        console.log(
-          `Setting up location tracking for ${Platform.OS}:`,
-          locationConfig
-        );
-
-        await Location.startLocationUpdatesAsync(
-          LOCATION_TASK_NAME,
-          locationConfig
-        );
-
-        console.log("Location tracking started successfully");
-      } catch (error) {
-        console.error("Error setting up location:", error);
-
-        console.log("Trying fallback location setup...");
-        try {
-          const fallbackConfig = {
-            accuracy: Location.Accuracy.High,
-            timeInterval: Platform.OS === "ios" ? 3000 : 1000,
-            distanceInterval: 2,
-          };
-
-          await Location.startLocationUpdatesAsync(
-            LOCATION_TASK_NAME,
-            fallbackConfig
-          );
-          console.log("Location tracking started with fallback config");
-        } catch (fallbackError) {
-          console.error("Fallback location setup also failed:", fallbackError);
-
-          console.log("Using periodic getCurrentPosition as final fallback...");
-
-          const periodicLocationFetch = () => {
-            Location.getCurrentPositionAsync({
-              accuracy: Location.Accuracy.High,
-            })
-              .then((location) => {
-                if (sharedLocationCallback) {
-                  sharedLocationCallback(location);
-                }
-              })
-              .catch((getCurrentError) => {
-                console.log("getCurrentPosition failed:", getCurrentError);
-              });
-          };
-
-          periodicLocationFetch();
-
-          cleanupInterval = setInterval(periodicLocationFetch, 3000);
-        }
-      }
-    };
-
-    const setupLocationWrapper = async () => {
-      try {
-        await setupLocation();
-      } catch {
-        console.log(
-          "All location methods failed, using basic periodic fetching..."
-        );
-
-        const periodicLocationFetch = () => {
-          Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.High,
-          })
-            .then((location) => {
-              if (sharedLocationCallback) {
-                sharedLocationCallback(location);
-              }
-            })
-            .catch((getCurrentError) => {
-              console.log("getCurrentPosition failed:", getCurrentError);
-            });
-        };
-
-        periodicLocationFetch();
-
-        cleanupInterval = setInterval(periodicLocationFetch, 3000);
-      }
-    };
-
-    setupLocationWrapper();
-
-    return () => {
-      sharedLocationCallback = null;
-      Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME).catch(
-        console.error
-      );
-      if (cleanupInterval) {
-        clearInterval(cleanupInterval);
-      }
-    };
-  }, [appState]);
-
-  // intiial location
-  useEffect(() => {
-    const getCurrentLocation = async () => {
-      try {
-        let { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted") return;
-
-        let location = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.High,
-        });
-        setCurrTestLocation(location);
-        console.log("Initial current location:", location);
-      } catch (error) {
-        console.error("Error getting current location:", error);
-      }
-    };
-
-    getCurrentLocation();
-  }, []);
-
-  // useEffect(() => {
-  //   if (detected) {
-  //     router.push("/(tabs)/detectedPage");
-  //   }
-  // }, [detected]);
+    animateSequence();
+  }, [logoScale, logoTranslateY, titleOpacity, titleTranslateX, buttonOpacity, buttonTranslateX]);
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>
-        It&apos;s quiet here...
-      </ThemedText>
-      <ThemedText style={styles.subtitle}>No one is nearby.</ThemedText>
-      {/* <CompassHeading /> */}
-
-      <Button onPress={() => setDetected(!detected)} title={detected ? "Stop Detection" : "Start Detection"} />
-      
-      {detected && (
-        <ThemedView style={styles.detectionContainer}>
-          <ThemedText style={styles.detectionText}>🎯 Someone detected nearby!</ThemedText>
-          <ThemedView style={styles.sliderContainer}>
-            <ThemedText style={styles.sliderLabel}>
-              Buzz Duration: {buzzDuration.toFixed(0)}ms
-            </ThemedText>
-            <Slider
-              style={styles.slider}
-              minimumValue={100}
-              maximumValue={300}
-              value={buzzDuration}
-              onValueChange={setBuzzDuration}
-              minimumTrackTintColor="#4785EA"
-              maximumTrackTintColor="#d3d3d3"
-            />
-          </ThemedView>
-          
-          <ThemedView style={styles.sliderContainer}>
-            <ThemedText style={styles.sliderLabel}>
-              Wait Time: {waitTime.toFixed(0)}ms ({(waitTime/1000).toFixed(2)}s)
-            </ThemedText>
-            <Slider
-              style={styles.slider}
-              minimumValue={150}
-              maximumValue={1500}
-              value={waitTime}
-              onValueChange={setWaitTime}
-              minimumTrackTintColor="#ff6b6b"
-              maximumTrackTintColor="#d3d3d3"
-            />
-          </ThemedView>
-        </ThemedView>
-      )}
+      <Image
+        source={require("../../assets/images/login/loginTop.png")}
+        style={styles.topImage}
+      />
+      <Image
+        source={require("../../assets/images/login/loginBottom.png")}
+        style={styles.bottomImage}
+      />
+      <Animated.Image
+        source={require("../../assets/images/login/loginLogo.png")}
+        style={[
+          styles.image,
+          {
+            transform: [
+              { scale: logoScale },
+              { translateY: logoTranslateY }
+            ],
+          },
+        ]}
+      />
+      <Animated.View
+        style={{
+          opacity: titleOpacity,
+          transform: [{ translateX: titleTranslateX }],
+        }}
+      >
+        <ThemedText style={styles.title}>boop your friends!</ThemedText>
+      </Animated.View>
+      <Animated.View
+        style={{
+          opacity: buttonOpacity,
+          transform: [{ translateX: buttonTranslateX }],
+        }}
+      >
+        <TouchableOpacity 
+          style={styles.button}
+          onPress={() => router.push("/boopPage")}
+          activeOpacity={0.7}
+        >
+          <ThemedText style={styles.buttonText}>Sign in with google!</ThemedText>
+        </TouchableOpacity>
+      </Animated.View>
     </ThemedView>
   );
 }
@@ -324,50 +126,47 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f0f0f0",
-    paddingBottom: Platform.OS === 'ios' ? 92 : 96,
+    position: "relative",
+    backgroundColor: "#FBFBFB",
+  },
+  image: {
+    width: 270,
+    objectFit: "contain",
   },
   title: {
-    fontFamily: "ItcKabelDemi",
-    fontSize: 42,
-    lineHeight: 50,
-    color: "#4785EA",
-    textAlign: "center",
-  },
-  subtitle: {
     fontFamily: "GeneralSanMedium",
     fontSize: 24,
-    color: "#737373",
-    marginBottom: 10,
+    color: "#8B8B8B",
+    gap: 8,
   },
-  detectionContainer: {
-    marginTop: 30,
-    padding: 20,
-    backgroundColor: 'rgba(71, 133, 234, 0.1)',
-    borderRadius: 12,
-    width: '90%',
-    alignItems: 'center',
+  topImage: {
+    position: "absolute",
+    top: 0,
+    width: "100%",
   },
-  detectionText: {
+  bottomImage: {
+    position: "absolute",
+    bottom: 0,
+  },
+  button: {
+    backgroundColor: "#4785EA",
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 25,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginTop: 20,
+  },
+  buttonText: {
+    color: "#FFFFFF",
     fontSize: 18,
     fontFamily: "GeneralSanMedium",
-    color: "#4785EA",
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  sliderContainer: {
-    marginVertical: 15,
-    width: '100%',
-  },
-  sliderLabel: {
-    fontSize: 14,
-    fontFamily: "GeneralSanMedium",
-    color: "#737373",
-    marginBottom: 5,
-    textAlign: 'center',
-  },
-  slider: {
-    width: "100%",
-    height: 40,
-  },
+    textAlign: "center",
+  }
 });

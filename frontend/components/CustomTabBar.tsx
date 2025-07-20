@@ -30,8 +30,8 @@ const tabs: TabItem[] = [
     imagePath: require("@/assets/images/nav/boopGroup.svg"),
   },
   {
-    name: "index",
-    route: "/",
+    name: "boopPage",
+    route: "/(tabs)/boopPage", // This should be the main/default tab when tab bar is visible
     label: "boop!",
     color: "#4785EA",
     backgroundColor: "#D6E1FF",
@@ -39,24 +39,34 @@ const tabs: TabItem[] = [
   },
   {
     name: "profilePage",
-    route: "/profilePage",
+    route: "/(tabs)/profilePage",
     label: "Profile",
-    color: "#F06C6C",
-    backgroundColor: "#FFD6D6",
+    color: "#E88D4C",
+    backgroundColor: "#FFE8BE",
+    imagePath: require("@/assets/images/nav/profile.svg"), 
   },
-  // {
-  //   name: 'testTab',
-  //   route: '/testTab',
-  //   icon: 'magnifyingglass',
-  //   label: 'test',
-  //   imagePath: require("@/assets/images/nav/boop.svg") // You can change this to a search icon
-  // }
 ];
 
 export default function CustomTabBar({ profilePicture }: CustomTabBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
+
+  // Don't render the tab bar for the index/home route
+  const shouldHideTabBar = () => {
+    return (
+      pathname === "/" || 
+      pathname === "/(tabs)" || 
+      pathname === "/(tabs)/" ||
+      pathname === "/(tabs)/index" ||
+      pathname.endsWith("/index")
+    );
+  };
+
+  // If we should hide the tab bar, return null
+  if (shouldHideTabBar()) {
+    return null;
+  }
 
   const handleTabPress = (route: string) => {
     console.log("Tab pressed:", route);
@@ -68,12 +78,25 @@ export default function CustomTabBar({ profilePicture }: CustomTabBarProps) {
   };
 
   const isActiveTab = (route: string) => {
-    if (route === "/") {
-      return (
-        pathname === "/" || pathname === "/(tabs)" || pathname === "/(tabs)/"
-      );
+    // Normalize both pathname and route for comparison
+    const normalizedPathname = pathname.replace("/(tabs)", "").replace(/\/$/, "") || "/";
+    const normalizedRoute = route.replace("/(tabs)", "").replace(/\/$/, "") || "/";
+    
+    // Direct match for exact routes
+    if (normalizedPathname === normalizedRoute) {
+      return true;
     }
-    return pathname.includes(route.replace("/", ""));
+    
+    // Handle root/index routes
+    if (normalizedRoute === "/" && (normalizedPathname === "/" || normalizedPathname === "/index")) {
+      return true;
+    }
+    
+    // Extract the page name from route (e.g., "/boopPage" from "/(tabs)/boopPage")
+    const routePageName = normalizedRoute.replace("/", "");
+    
+    // Check if pathname ends with the page name
+    return routePageName && normalizedPathname.endsWith("/" + routePageName);
   };
 
   const TabBarContent = () => (
@@ -94,7 +117,7 @@ export default function CustomTabBar({ profilePicture }: CustomTabBarProps) {
           >
             <View style={styles.tabIconContainer}>
               <Image
-                source={tab.imagePath ? tab.imagePath : profilePicture}
+                source={tab.imagePath}
                 style={{
                   width: 24,
                   height: 24,
