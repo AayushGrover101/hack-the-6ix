@@ -1,7 +1,16 @@
 import { StyleSheet, Image, TouchableOpacity, Animated } from "react-native";
+import type { PropsWithChildren, ReactElement } from 'react';
+import ReanimatedAnimated, {
+  interpolate,
+  useAnimatedRef,
+  useAnimatedStyle,
+  useScrollViewOffset,
+} from 'react-native-reanimated';
 import { ThemedView } from "@/components/ThemedView";
 import { ThemedText } from "@/components/ThemedText";
 import { IconSymbol } from "@/components/ui/IconSymbol";
+import { useBottomTabOverflow } from '@/components/ui/TabBarBackground';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
 

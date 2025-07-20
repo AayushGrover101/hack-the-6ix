@@ -5,16 +5,17 @@ import {
   AppState,
   Button,
   Vibration,
+  View,
 } from "react-native";
 import { Image } from "expo-image";
 import Slider from "@react-native-community/slider";
+import { LinearGradient } from "expo-linear-gradient";
 
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
-import { CompassHeading } from "@/components/CompassHeading";
+import ParallaxScrollView from "@/components/ParallaxScrollView";
 import * as Location from "expo-location";
 import * as TaskManager from "expo-task-manager";
-import ParallaxScrollView from "@/components/ParallaxScrollView";
 
 const LOCATION_TASK_NAME = "background-location-task";
 let sharedLocationCallback:
@@ -43,14 +44,33 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }: any) => {
 
 export default function TabOneScreen() {
   const [appState, setAppState] = useState(AppState.currentState);
-  const [currTestLocation, setCurrTestLocation] =
-    useState<Location.LocationObject | null>(null);
   const [detected, setDetected] = useState<boolean>(false); // TODO: make this a context or global state or smth
 
   const [buzzDuration, setBuzzDuration] = useState(200);
   const [waitTime, setWaitTime] = useState(500);
   const intervalRef = useRef<number | null>(null);
-  
+
+  // Gradient state
+  const [gradientIntensity, setGradientIntensity] = useState(50); // 0-100
+  const [topGradientBlue, setTopGradientBlue] = useState(true); // true = #4785EA, false = #F06C6C
+
+  // Slider state
+  const [sliderValue, setSliderValue] = useState(0); // 0-100, represents progress percentage
+
+  // Helper function to calculate bottom gradient color based on intensity
+  const getBottomGradientColor = (intensity: number) => {
+    // Interpolate between white (255,255,255) and #A76CF0 (167,108,240)
+    const r = Math.round(255 - (255 - 167) * (intensity / 100));
+    const g = Math.round(255 - (255 - 108) * (intensity / 100));
+    const b = Math.round(255 - (255 - 240) * (intensity / 100));
+    return `rgb(${r},${g},${b})`;
+  };
+
+  // Helper function to get top gradient color
+  const getTopGradientColor = (isBlue: boolean) => {
+    return isBlue ? "#4785EA" : "#F06C6C";
+  };
+
   // const [toggleDND, setToggleDND] = useState<boolean>(false);
 
   useEffect(() => {
@@ -108,7 +128,6 @@ export default function TabOneScreen() {
     let cleanupInterval: any;
 
     sharedLocationCallback = (location: Location.LocationObject) => {
-      setCurrTestLocation(location);
       const timestamp = new Date().toLocaleTimeString();
       const mode = appState === "active" ? "FOREGROUND" : "BACKGROUND";
       console.log(`[${timestamp}] ${mode} Location updated:`, {
@@ -165,8 +184,10 @@ export default function TabOneScreen() {
         );
 
         // For iOS in Expo Go, skip background location and go straight to foreground fallback
-        if (Platform.OS === 'ios') {
-          console.log("iOS detected - skipping background location, using foreground location for Expo Go compatibility");
+        if (Platform.OS === "ios") {
+          console.log(
+            "iOS detected - skipping background location, using foreground location for Expo Go compatibility"
+          );
           // Skip to periodic location fetching for iOS
         } else {
           // Try background location for Android
@@ -178,7 +199,10 @@ export default function TabOneScreen() {
             console.log("Location tracking started successfully");
             return; // Success, exit early
           } catch (backgroundError) {
-            console.log("Background location failed, trying fallback:", backgroundError);
+            console.log(
+              "Background location failed, trying fallback:",
+              backgroundError
+            );
           }
         }
 
@@ -201,10 +225,9 @@ export default function TabOneScreen() {
 
         periodicLocationFetch();
         cleanupInterval = setInterval(periodicLocationFetch, 3000);
-        
       } catch (error) {
         console.error("Error setting up location:", error);
-        
+
         console.log("Using basic periodic fetching as final fallback...");
         const periodicLocationFetch = () => {
           Location.getCurrentPositionAsync({
@@ -283,7 +306,6 @@ export default function TabOneScreen() {
         let location = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.High,
         });
-        setCurrTestLocation(location);
         console.log("Initial current location:", location);
       } catch (error) {
         console.error("Error getting current location:", error);
@@ -293,65 +315,200 @@ export default function TabOneScreen() {
     getCurrentLocation();
   }, []);
 
-  // useEffect(() => {
-  //   if (detected) {
-  //     router.push("/(tabs)/detectedPage");
-  //   }
-  // }, [detected]);
-
   return (
     <ThemedView style={styles.container}>
-      {/* <CompassHeading /> */}
+      <ThemedView style={styles.headerContainer}>
+        <Image
+          source={require("@/assets/images/boop/blueBackground.png")}
+          style={styles.headerBackgroundImage}
+        />
+        <View style={styles.headerContent}>
+          <Image
+            source={require("@/assets/images/boop/blueLoop.png")}
+            style={styles.headerIcon}
+          />
+          <ThemedText style={styles.headerTitle}>boop</ThemedText>
+        </View>
+      </ThemedView>
+
+      {detected ? (
+        <ThemedView style={[styles.detectionContainer]}>
+          <LinearGradient
+            colors={[
+              getTopGradientColor(topGradientBlue),
+              getBottomGradientColor(gradientIntensity),
+            ]}
+            style={styles.gradientWrapper}
+          >
+            <View style={styles.profileCard}>
+              <View style={styles.profileImageContainer}>
+                <Image
+                  source={require("@/assets/images/boop-group/jesse-headshot.png")}
+                  style={styles.profileImage}
+                />
+              </View>
+              <View style={styles.profileInfo}>
+                <ThemedText style={styles.profileName}>Jesse</ThemedText>
+                <ThemedText style={styles.profileDistance}>50m</ThemedText>
+              </View>
+            </View>
+
+            {/* Message Text - Row 2 */}
+            <View style={styles.messageContainer}>
+              <ThemedText style={styles.messageTitle}>
+                someone&apos;s nearby!
+              </ThemedText>
+              <ThemedText style={styles.messageSubtitle}>
+                Go boop them!!
+              </ThemedText>
+            </View>
+
+            {/* Slider Row - Row 3 */}
+            <View style={styles.boopSliderContainer}>
+              <View style={styles.sliderTrack}>
+                <View style={styles.leftArrows}>
+                  <ThemedText style={styles.arrowText}> → → → →</ThemedText>
+                </View>
+                <View style={styles.sliderProgress}>
+                  {/* Background track */}
+                  <View style={styles.backgroundTrack} />
+                  
+                  {/* Blue progress bar */}
+                  <View
+                    style={[
+                      styles.progressBar,
+                      { width: `${(sliderValue / 95) * 90}%` },
+                    ]}
+                  />
+
+                  {/* Moving left avatar */}
+                  <View
+                    style={[
+                      styles.avatarContainer,
+                      styles.leftAvatarContainer,
+                      { left: `${(sliderValue / 95) * 90}%` },
+                    ]}
+                  >
+                    <Image
+                      source={require("@/assets/images/boop-group/aayush-headshot.png")}
+                      style={styles.sliderAvatar}
+                    />
+                  </View>
+
+                  {/* Fixed right avatar */}
+                  <View
+                    style={[
+                      styles.avatarContainer,
+                      styles.rightAvatarContainer,
+                      { left: "90%" },
+                    ]}
+                  >
+                    <Image
+                      source={require("@/assets/images/boop-group/jesse-headshot.png")}
+                      style={styles.sliderAvatar}
+                    />
+                  </View>
+                </View>
+                <View style={styles.rightArrows}>
+                  <ThemedText style={styles.arrowText}>← →</ThemedText>
+                </View>
+              </View>
+
+              {/* Slider control for testing */}
+              <View style={styles.sliderControlContainer}>
+                <ThemedText style={styles.sliderLabel}>
+                  Progress: {sliderValue.toFixed(0)}%
+                </ThemedText>
+                <Slider
+                  style={styles.slider}
+                  minimumValue={0}
+                  maximumValue={95}
+                  value={sliderValue}
+                  onValueChange={setSliderValue}
+                  minimumTrackTintColor="#4785EA"
+                  maximumTrackTintColor="#d3d3d3"
+                />
+              </View>
+            </View>
+
+            {/* Gradient Controls - Collapsible */}
+            {/* <ThemedView style={styles.gradientControls}>
+              <ThemedText style={styles.sliderLabel}>
+                Bottom Gradient Intensity: {gradientIntensity.toFixed(0)}%
+              </ThemedText>
+              <Slider
+                style={styles.slider}
+                minimumValue={0}
+                maximumValue={100}
+                value={gradientIntensity}
+                onValueChange={setGradientIntensity}
+                minimumTrackTintColor="#A76CF0"
+                maximumTrackTintColor="#d3d3d3"
+              />
+
+              <ThemedText style={styles.sliderLabel}>
+                Top Gradient: {topGradientBlue ? "Blue" : "Red"}
+              </ThemedText>
+              <Button
+                title={`Switch to ${topGradientBlue ? "Red" : "Blue"}`}
+                onPress={() => setTopGradientBlue(!topGradientBlue)}
+              />
+            </ThemedView>
+
+            <ThemedView style={styles.sliderContainer}>
+              <ThemedText style={styles.sliderLabel}>
+                Buzz Duration: {buzzDuration.toFixed(0)}ms
+              </ThemedText>
+              <Slider
+                style={styles.slider}
+                minimumValue={100}
+                maximumValue={300}
+                value={buzzDuration}
+                onValueChange={setBuzzDuration}
+                minimumTrackTintColor="#4785EA"
+                maximumTrackTintColor="#d3d3d3"
+              />
+            </ThemedView>
+
+            <ThemedView style={styles.sliderContainer}>
+              <ThemedText style={styles.sliderLabel}>
+                Wait Time: {waitTime.toFixed(0)}ms (
+                {(waitTime / 1000).toFixed(2)}
+                s)
+              </ThemedText>
+              <Slider
+                style={styles.slider}
+                minimumValue={150}
+                maximumValue={1500}
+                value={waitTime}
+                onValueChange={setWaitTime}
+                minimumTrackTintColor="#ff6b6b"
+                maximumTrackTintColor="#d3d3d3"
+              />
+            </ThemedView> */}
+          </LinearGradient>
+        </ThemedView>
+      ) : (
+        <ThemedView style={styles.quietContainer}>
+          <Image
+            source={require("@/assets/images/boop/leaf.png")}
+            style={styles.quietImage}
+          />
+          <ThemedText type="title" style={styles.title}>
+            It&apos;s quiet here...
+          </ThemedText>
+          <ThemedText style={styles.subtitle}>No one is nearby.</ThemedText>
+        </ThemedView>
+      )}
 
       <Button
         onPress={() => setDetected(!detected)}
         title={detected ? "Stop Detection" : "Start Detection"}
       />
-
-      {detected ? (
-        <ThemedView style={styles.detectionContainer}>
-          <ThemedText style={styles.detectionText}>
-            🎯 Someone detected nearby!
-          </ThemedText>
-          <ThemedView style={styles.sliderContainer}>
-            <ThemedText style={styles.sliderLabel}>
-              Buzz Duration: {buzzDuration.toFixed(0)}ms
-            </ThemedText>
-            <Slider
-              style={styles.slider}
-              minimumValue={100}
-              maximumValue={300}
-              value={buzzDuration}
-              onValueChange={setBuzzDuration}
-              minimumTrackTintColor="#4785EA"
-              maximumTrackTintColor="#d3d3d3"
-            />
-          </ThemedView>
-
-          <ThemedView style={styles.sliderContainer}>
-            <ThemedText style={styles.sliderLabel}>
-              Wait Time: {waitTime.toFixed(0)}ms ({(waitTime / 1000).toFixed(2)}
-              s)
-            </ThemedText>
-            <Slider
-              style={styles.slider}
-              minimumValue={150}
-              maximumValue={1500}
-              value={waitTime}
-              onValueChange={setWaitTime}
-              minimumTrackTintColor="#ff6b6b"
-              maximumTrackTintColor="#d3d3d3"
-            />
-          </ThemedView>
-        </ThemedView>
-      ) : (
-        <>
-          <ThemedText type="title" style={styles.title}>
-            It&apos;s quiet here...
-          </ThemedText>
-          <ThemedText style={styles.subtitle}>No one is nearby.</ThemedText>
-        </>
-      )}
+      {/* <Button
+          onPress={() => setDetected(!detected)}
+          title={detected ? "Stop Detection" : "Start Detection"}
+        /> */}
     </ThemedView>
   );
 }
@@ -359,10 +516,48 @@ export default function TabOneScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#f0f0f0",
+  },
+  scrollView: {
+    flex: 1,
+  },
+  headerContainer: {
+    position: "relative",
+    height: 105,
+    paddingVertical: 12,
+    width: "100%",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    zIndex: 1,
+  },
+  headerBackgroundImage: {
+    position: "absolute",
+    width: "100%",
+    height: 105,
+    objectFit: "contain",
+  },
+  headerContent: {
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f0f0f0",
-    paddingBottom: Platform.OS === "ios" ? 92 : 96,
+    zIndex: 1,
+  },
+  headerIcon: {
+    width: 40, // Reduced from 40px
+    height: 40, // Reduced from 40px
+    resizeMode: "contain",
+    marginRight: 10,
+  },
+  headerTitle: {
+    fontFamily: "ItcKabelDemi",
+    fontSize: 42,
+    lineHeight: 38,
+    color: "#4785EA",
+    textAlign: "center",
+  },
+  content: {
+    padding: 20,
+    alignItems: "center",
   },
   title: {
     fontFamily: "ItcKabelDemi",
@@ -378,19 +573,184 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   detectionContainer: {
-    marginTop: 30,
-    padding: 20,
-    backgroundColor: "rgba(71, 133, 234, 0.1)",
-    borderRadius: 12,
-    width: "90%",
+    width: "100%",
+    height: "100%",
+    position: "relative",
     alignItems: "center",
+  },
+  gradientWrapper: {
+    flex: 1,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    padding: 32,
+    paddingTop: 60,
+  },
+  gradientControls: {
+    marginVertical: 15,
+    backgroundColor: "rgba(255,255,255,0.8)",
+    borderRadius: 8,
+    width: "100%",
+    alignItems: "center",
+    padding: 16,
+  },
+  profileCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    marginBottom: 40,
+  },
+  profileImageContainer: {
+    marginRight: 16,
+    borderRadius: 100,
+    borderColor: "#FFFFFF",
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  profileImage: {
+    width: 140,
+    height: 140,
+    borderRadius: 100,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: 24,
+    fontFamily: "GeneralSanMedium",
+    color: "#fff",
+    marginBottom: 12,
+  },
+  profileDistance: {
+    fontSize: 64,
+    lineHeight: 64,
+    fontFamily: "ItcKabelDemi",
+    color: "#fff",
+  },
+  messageContainer: {
+    alignItems: "center",
+    justifyContent: "flex-end",
+    marginBottom: 80,
+    textAlign: "center",
+  },
+  messageTitle: {
+    fontSize: 42,
+    lineHeight: 42,
+    fontFamily: "ItcKabelDemi",
+    color: "#FFFFFF",
+    width: "100%",
+  },
+  messageSubtitle: {
+    top: -28,
+    fontSize: 24,
+    fontFamily: "GeneralSanMedium",
+    color: "rgba(255,255,255,0.8)",
+  },
+  boopSliderContainer: {
+    width: "100%",
+    flex: 1,
+    alignItems: "center",
+    marginBottom: 40,
+  },
+  sliderTrack: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.9)",
+    borderRadius: 25,
+    width: "80%",
+    height: 22,
+  },
+  leftArrows: {
+    flex: 1,
+    alignItems: "center",
+  },
+  rightArrows: {
+    flex: 1,
+    alignItems: "center",
+  },
+  arrowText: {
+    fontSize: 18,
+    color: "#4785EA",
+    fontFamily: "GeneralSanMedium",
+  },
+  sliderProgress: {
+    flex: 3,
+    height: "100%",
+    borderRadius: 17,
+    marginHorizontal: 8,
+    position: "relative",
+    overflow: "visible", // Changed to visible so avatars can extend beyond bounds
+  },
+  backgroundTrack: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    width: "90%", // Background track covers 90% like the progress area
+    height: "100%",
+    backgroundColor: "rgba(200,200,200,0.4)", // Light gray background
+    borderRadius: 17,
+    zIndex: 0,
+  },
+  progressBar: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    height: "100%",
+    width: "100%",
+    backgroundColor: "#4785EA",
+    borderRadius: 17,
+    zIndex: 1,
+  },
+  avatarContainer: {
+    position: "absolute",
+    top: -15,
+    width: 50,
+    height: 50,
+    zIndex: 10, // Increased z-index to bring avatars to front
+  },
+  leftAvatarContainer: {
+    transform: [{ translateX: -32 }], // Center the avatar on its position
+  },
+  rightAvatarContainer: {},
+  userAvatars: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+  },
+  sliderAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  sliderControlContainer: {
+    marginTop: 20,
+    width: "80%",
+    backgroundColor: "rgba(255,255,255,0.8)",
+    borderRadius: 8,
+    padding: 12,
   },
   detectionText: {
     fontSize: 18,
     fontFamily: "GeneralSanMedium",
-    color: "#4785EA",
+    color: "#FFFFFF",
     marginBottom: 15,
     textAlign: "center",
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   sliderContainer: {
     marginVertical: 15,
@@ -406,5 +766,31 @@ const styles = StyleSheet.create({
   slider: {
     width: "100%",
     height: 40,
+  },
+  quietContainer: {
+    marginTop: -90,
+    alignItems: "center",
+    backgroundColor: "#f0f0f0",
+  },
+  quietTitle: {
+    fontFamily: "ItcKabelDemi",
+    fontSize: 24,
+    color: "#737373",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  quietSubtitle: {
+    fontFamily: "GeneralSanMedium",
+    fontSize: 16,
+    color: "#737373",
+    textAlign: "center",
+  },
+  quietImage: {
+    position: "relative",
+    width: 200,
+    height: 450,
+    marginTop: -50,
+    marginBottom: 20,
+    objectFit: "contain",
   },
 });
